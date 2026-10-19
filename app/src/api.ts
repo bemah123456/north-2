@@ -1,0 +1,103 @@
+// Talks to the check-in server (server/checkin/api.py).
+// Set EXPO_PUBLIC_API_URL to the server's address. On a phone that's your
+// computer's LAN address (e.g. http://192.168.1.20:8000), not localhost.
+
+import { Platform } from 'react-native';
+
+const BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
+const TOKEN = process.env.EXPO_PUBLIC_API_TOKEN;
+
+export type Exercise = {
+  id: string;
+  part: 'alertness' | 'orientation' | 'attention';
+  kind: string;
+  prompt: string;
+  listen_seconds: number;
+};
+
+export type Person = {
+  id: string;
+  name: string;
+  birth_date: string;
+  timezone: string;
+  checkin_time: string;
+  place_keywords: string[];
+  family_name: string | null;
+  family_phone: string | null;
+};
+
+export type Band = 'unlikely' | 'possible_impairment' | 'possible_delirium';
+
+export type Result = {
+  checkin_id: string;
+  date: string;
+  band: Band;
+  headline: string;
+  reasons: string[];
+  total: number;
+  parts: Record<string, number>;
+  needs_review: number;
+  voice: { measured: boolean; baseline_days: number; change_probability: number | null };
+  items: { exercise_id: string; prompt: string; transcript: string; correct?: boolean | null; correct_items?: number; out_of?: number }[];
+  disclaimer: string;
+};
+
+export type DayRow = {
+  date: string;
+  status: Band | 'missed' | 'pending' | 'day_off';
+  headline: string;
+  reasons: string[];
+  checkin_id?: string;
+};
+
+export type Alert = { date: string; kind: string; sent_at: string; delivered: number; message: string };
+
+// One answer: a recording (phone) or typed text (web demo, or no mic).
+export type Answer = { exerciseId: string; audioUri?: string; transcript?: string };
+
+async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
+  if (TOKEN) headers.Authorization = `Bearer ${TOKEN}`;
+  if (init.body && typeof init.body === 'string') headers['Content-Type'] = 'application/json';
+  const res = await fetch(`${BASE}${path}`, { ...init, headers });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      detail = (await res.json()).detail ?? detail;
+    } catch {}
+    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+  }
+  return res.json() as Promise<T>;
+}
+
+export const api = {
+  createPerson: (p: Omit<Person, 'id' | 'family_name'> & { family_name?: string }) =>
+    call<Person>('/people', { method: 'POST', body: JSON.stringify(p) }),
+  getPerson: (id: string) => call<Person>(`/people/${id}`),
+  updatePerson: (id: string, changes: Partial<Person> & { senior_push_token?: string; family_push_token?: string }) =>
+    call<Person>(`/people/${id}`, { method: 'PATCH', body: JSON.stringify(changes) }),
+  today: (id: string) => call<{ date: string; already_done: boolean; exercises: Exercise[] }>(`/people/${id}/today`),
+  days: (id: string) => call<{ person: Person; days: DayRow[]; alerts: Alert[] }>(`/people/${id}/days`),
+  checkin: (checkinId: string) => call<Result>(`/checkins/${checkinId}`),
+  familyReport: (checkinId: string, different: boolean) =>
+    call<Result>(`/checkins/${checkinId}/family-report`, { method: 'POST', body: JSON.stringify({ different }) }),
+  dayOff: (id: string, date: string, off: boolean) =>
+    call(`/people/${id}/days-off`, { method: 'POST', body: JSON.stringify({ date, off }) }),
+
+  async submit(id: string, answers: Answer[]): Promise<Result> {
+    const form = new FormData();
+    const typed = answers.filter((a) => a.transcript !== undefined && !a.audioUri);
+    form.append('answers', JSON.stringify(typed.map((a) => ({ exercise_id: a.exerciseId, transcript: a.transcript }))));
+    for (const a of answers) {
+      if (!a.audioUri) continue;
+      if (Platform.OS === 'web') {
+        const blob = await (await fetch(a.audioUri)).blob();
+        form.append(`audio_${a.exerciseId}`, blob, `${a.exerciseId}.webm`);
+      } else {
+        // React Native's FormData takes a file reference object.
+        form.append(`audio_${a.exerciseId}`, { uri: a.audioUri, name: `${a.exerciseId}.m4a`, type: 'audio/m4a' } as unknown as Blob);
+      }
+    }
+    return call<Result>(`/people/${id}/checkins`, { method: 'POST', body: form });
+  },
+};

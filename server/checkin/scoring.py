@@ -1,0 +1,163 @@
+"""Turn one day's answers into a 4AT-style result the family can read."""
+
+from __future__ import annotations
+
+from datetime import date
+
+from . import answers as A
+from . import judge
+from .baseline import build_baseline, change_probability, change_scores, top_reasons
+from .exercises import Exercise
+from .features import Word, checkin_features
+
+CHANGE_ALERT = 0.7  # model probability that scores the 4AT "acute change" item
+CHANGE_WATCH = 0.4  # shown as a reason, not scored
+
+HEADLINES = {
+    "possible_delirium": "Call their doctor today",
+    "possible_impairment": "Keep an eye on it",
+    "unlikely": "Looks like their usual self",
+}
+
+
+def _check_orientation(ex: Exercise, text: str, person: dict, day: date) -> tuple[bool | None, str]:
+    birth = date.fromisoformat(person["birth_date"])
+    if ex.kind == "year":
+        return A.check_year(text, day), "rules"
+    if ex.kind == "age":
+        return A.check_age(text, birth, day), "rules"
+    if ex.kind == "dob":
+        return A.check_dob(text, birth), "rules"
+    if ex.kind == "place":
+        return A.check_place(text, person.get("place_keywords", [])), "rules"
+    raise ValueError(ex.kind)
+
+
+def _facts(ex: Exercise, person: dict, day: date) -> str:
+    birth = date.fromisoformat(person["birth_date"])
+    return {
+        "year": f"The current year is {day.year}.",
+        "age": f"The person is {A.age_on(birth, day)} years old.",
+        "dob": f"The person was born on {birth:%B} {birth.day}, {birth.year}.",
+        "place": "The person is at a place described as: "
+        + "; ".join(person.get("place_keywords", []) or ["unknown"]),
+    }[ex.kind]
+
+
+def score_checkin(
+    person: dict,
+    day: date,
+    exercises: list[Exercise],
+    given: dict[str, dict],
+    history: list[dict],
+    family_says_different: bool | None = None,
+) -> dict:
+    """given: exercise id -> {"transcript": str, "words": list[Word] | None}.
+    history: feature dicts from this person's earlier normal check-ins."""
+    items = []
+    mistakes = 0
+    unsure = 0
+    attention = None
+    reasons: list[str] = []
+
+    for ex in exercises:
+        g = given.get(ex.id, {})
+        text = g.get("transcript", "") or ""
+        item = {"exercise_id": ex.id, "part": ex.part, "kind": ex.kind,
+                "prompt": ex.prompt, "transcript": text}
+        if ex.part == "orientation":
+            ok, by = _check_orientation(ex, text, person, day)
+            if ok is None:
+                verdict = judge.judge_answer(ex.prompt, text, _facts(ex, person, day))
+                if verdict:
+                    ok, by = verdict["correct"], "claude"
+                    item["judge_reason"] = verdict["reason"]
+            item.update(correct=ok, checked_by=by)
+            if ok is False:
+                mistakes += 1
+            elif ok is None:
+                unsure += 1
+        elif ex.part == "attention":
+            attention = A.score_attention(ex.kind, text)
+            item.update(attention)
+        items.append(item)
+
+    # AMT4: 0 mistakes 0, 1 mistake 1, 2+ mistakes 2.
+    amt4_score = min(mistakes, 2)
+    if mistakes:
+        wrong = [i["kind"] for i in items if i.get("correct") is False]
+        names = {"year": "the year", "age": "their age", "dob": "their birthday", "place": "where they are"}
+        reasons.append("got " + ", ".join(names[w] for w in wrong) + " wrong")
+    if attention and attention["score"]:
+        reasons.append(
+            f"got {attention['correct_items']} of {attention['out_of']} in the backwards task "
+            f"(needs {attention['needed']})"
+        )
+
+    # How they spoke, against their own normal.
+    clips = {k: v["words"] for k, v in given.items() if v.get("words") is not None}
+    feats = checkin_features(clips) if clips else None
+    baseline = build_baseline(history)
+    z = prob = None
+    if feats and baseline:
+        z = change_scores(feats, baseline)
+        prob = change_probability(z)
+
+    # 1. Alertness. The 4AT scores this by watching; here we use clear
+    # signs only: no reply to most questions, or very slow and very brief
+    # against their own normal.
+    answered = sum(1 for e in exercises if (given.get(e.id, {}).get("transcript") or "").strip())
+    drowsy = answered < len(exercises) / 2
+    if not drowsy and z is not None:
+        drowsy = z["latency_s"] >= 3 and z["greeting_words"] >= 2
+    elif not drowsy and feats and baseline is None:
+        drowsy = feats["latency_s"] > 8
+    alertness_score = 4 if drowsy else 0
+    if drowsy:
+        reasons.insert(0, "seemed drowsy or slow to respond")
+
+    # 4. Acute change: the family's word, or the voice model.
+    change_score = 0
+    if family_says_different:
+        change_score = 4
+        reasons.insert(0, "family says they seem different today")
+    if prob is not None and z is not None:
+        voice_reasons = top_reasons(z)
+        if prob >= CHANGE_ALERT:
+            change_score = 4
+            reasons.extend(voice_reasons or ["voice differs from their usual"])
+        elif prob >= CHANGE_WATCH:
+            reasons.extend(voice_reasons)
+
+    total = alertness_score + amt4_score + (attention["score"] if attention else 2) + change_score
+    band = "possible_delirium" if total >= 4 else "possible_impairment" if total >= 1 else "unlikely"
+
+    return {
+        "date": day.isoformat(),
+        "total": total,
+        "band": band,
+        "headline": HEADLINES[band],
+        "reasons": reasons,
+        "parts": {
+            "alertness": alertness_score,
+            "amt4": amt4_score,
+            "attention": attention["score"] if attention else 2,
+            "acute_change": change_score,
+        },
+        "needs_review": unsure,
+        "voice": {
+            "measured": feats is not None,
+            "baseline_days": baseline["n_days"] if baseline else 0,
+            "change_probability": prob,
+            "change_scores": z,
+        },
+        "features": feats,
+        "items": items,
+        "disclaimer": "Screening only, not a diagnosis. If you are worried, call their doctor.",
+    }
+
+
+def words_from_json(raw: list[dict] | None) -> list[Word] | None:
+    if raw is None:
+        return None
+    return [Word(w["text"], float(w["start"]), float(w["end"])) for w in raw]

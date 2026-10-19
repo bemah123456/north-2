@@ -1,0 +1,19 @@
+{
+  "intercept": -3.5090449514977764,
+  "weights": {
+    "latency_s": 1.5082917092621968,
+    "words_per_min": 0.602699871910825,
+    "pauses_per_min": 1.6178146368946704,
+    "mean_pause_s": 0.7546565143736393,
+    "filler_rate": 2.1524867155112113,
+    "repeat_rate": 2.059876503123943,
+    "greeting_words": 0.7383696052918711
+  },
+  "trained_on": "synthetic",
+  "synthetic": true,
+  "n_rows": 720,
+  "n_people": 60,
+  "n_off": 197,
+  "held_out_people_auc": 0.9886636060991352,
+  "trained_date": "2026-10-19"
+}
