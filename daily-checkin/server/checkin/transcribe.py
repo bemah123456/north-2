@@ -3,9 +3,10 @@
 Set STT_PROVIDER to one of:
   "local"     free: Whisper running on this server (pip install -r
               requirements-local.txt). LOCAL_WHISPER_MODEL picks the
-              weights: a Hugging Face id (default openai/whisper-small.en,
-              the most accurate in our comparison) or a folder, such as
-              the model fine-tuned on older voices.
+              weights: a Hugging Face id (default openai/whisper-small;
+              small.en is more accurate in a quiet room but much worse with
+              a TV on) or a folder, such as the model fine-tuned on older
+              voices.
   "parakeet"  free: NVIDIA Parakeet TDT 0.6B v2 on the CPU (pip install
               sherpa-onnx; unpack sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8
               from the sherpa-onnx releases and set PARAKEET_DIR to it)
@@ -130,7 +131,7 @@ def _whisper(audio: bytes, content_type: str) -> tuple[str, list[Word]]:
     return body.get("text", ""), words
 
 
-DEFAULT_LOCAL_MODEL = "openai/whisper-small.en"
+DEFAULT_LOCAL_MODEL = "openai/whisper-small"
 _local_pipeline = None
 
 

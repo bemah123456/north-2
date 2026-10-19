@@ -80,6 +80,7 @@ def test_speech_to_text_slips_are_fixed():
     birth, today = date(1944, 3, 14), date(2026, 10, 19)
     assert A.check_age("eighty too", birth, today) is True
     assert A.check_age("I'm eighty for", birth, today) is False  # 84 is still wrong
+    assert A.check_age("80 too", birth, today) is True
     assert A.check_year("it's 20/26", today) is True
     assert A.check_year("twenty six, I think", today) is True
     assert A.check_year("twenty five", today) is False

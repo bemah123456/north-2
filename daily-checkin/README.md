@@ -47,7 +47,7 @@ Scan the QR code with Expo Go on a phone that's on the same Wi-Fi. Press `w` for
 
 | Setting | What it turns on |
 | --- | --- |
-| `STT_PROVIDER=local` | Free speech-to-text for recorded answers: Whisper runs on the server (`pip install -r requirements-local.txt`, plus ffmpeg). `LOCAL_WHISPER_MODEL` picks the weights, either a Hugging Face id (default `openai/whisper-small.en`, the most accurate in the project's speech model comparison) or the folder of the model fine-tuned on older voices. Whisper tends to drop "um" and "uh", so the filler measure is weaker with it. |
+| `STT_PROVIDER=local` | Free speech-to-text for recorded answers: Whisper runs on the server (`pip install -r requirements-local.txt`, plus ffmpeg). `LOCAL_WHISPER_MODEL` picks the weights, either a Hugging Face id (default `openai/whisper-small`; `small.en` is more accurate in a quiet room but far worse with a TV in the background) or the folder of the model fine-tuned on older voices. Whisper tends to drop "um" and "uh", so the filler measure is weaker with it. |
 | `STT_PROVIDER=parakeet` | Another free option: NVIDIA Parakeet TDT 0.6B v2 on the CPU. `pip install sherpa-onnx`, unpack `sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8` from the sherpa-onnx releases, and set `PARAKEET_DIR` to it. |
 | `STT_PROVIDER=deepgram` + `DEEPGRAM_API_KEY` | Paid alternative that keeps fillers (or `STT_PROVIDER=openai` + `OPENAI_API_KEY`). Without any provider, only typed answers work. |
 | `JUDGE_ENABLED=1` + `ANTHROPIC_API_KEY` | Claude double-checks answers the rules can't settle |

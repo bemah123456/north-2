@@ -46,9 +46,14 @@ DONT_KNOW = re.compile(r"\b(don'?t|do not|not sure|no idea|can'?t|cannot|forget|
 
 
 def normalize(text: str) -> str:
-    """ "eighty too" -> "eighty two", "20/26" or "20-26" -> "2026". """
-    text = re.sub(rf"\b{_TENS_RE}[\s,-]+(to|too|for|won|ate|tree)\b",
-                  lambda m: f"{m.group(1)} {_SOUND_ALIKE[m.group(2).lower()]}", text, flags=re.I)
+    """ "eighty too" -> "eighty two", "80 too" -> "82", "20/26" -> "2026". """
+    def tens_unit(m):
+        unit = _SOUND_ALIKE[m.group(2).lower()]
+        if m.group(1).isdigit():  # "80 too" -> "82"
+            return str(int(m.group(1)) + _UNITS[unit])
+        return f"{m.group(1)} {unit}"
+
+    text = re.sub(rf"\b{_TENS_RE}[\s,-]+(to|too|for|won|ate|tree)\b", tens_unit, text, flags=re.I)
     return re.sub(r"\b(19|20)\s*[/-]\s*(\d\d)\b", r"\1\2", text)
 
 
