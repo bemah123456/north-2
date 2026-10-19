@@ -1,0 +1,4 @@
+# Free speech-to-text on this server (STT_PROVIDER=local). Also needs ffmpeg.
+-r requirements.txt
+transformers>=4.45
+torch>=2.3

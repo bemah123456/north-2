@@ -31,7 +31,7 @@ The total uses the 4AT bands: 4+ is "Call their doctor today", 1 to 3 is "Keep a
 # Server
 cd server
 python3 -m pip install -r requirements.txt
-python3 -m pytest                      # 35 tests
+python3 -m pytest                      # 37 tests
 python3 -m checkin.demo                # optional: a demo senior with a week of history
 DEMO_MODE=1 uvicorn checkin.api:app --host 0.0.0.0 --port 8000
 
@@ -47,7 +47,8 @@ Scan the QR code with Expo Go on a phone that's on the same Wi-Fi. Press `w` for
 
 | Setting | What it turns on |
 | --- | --- |
-| `STT_PROVIDER=deepgram` + `DEEPGRAM_API_KEY` | Speech-to-text for recorded answers (or `STT_PROVIDER=openai` + `OPENAI_API_KEY` for Whisper). Without one, only typed answers work. |
+| `STT_PROVIDER=local` | Free speech-to-text for recorded answers: Whisper runs on the server (`pip install -r requirements-local.txt`, plus ffmpeg). `LOCAL_WHISPER_MODEL` picks the weights, either a Hugging Face id (default `openai/whisper-small`) or the folder of the model fine-tuned on older voices. Whisper tends to drop "um" and "uh", so the filler measure is weaker with it. |
+| `STT_PROVIDER=deepgram` + `DEEPGRAM_API_KEY` | Paid alternative that keeps fillers (or `STT_PROVIDER=openai` + `OPENAI_API_KEY`). Without any provider, only typed answers work. |
 | `JUDGE_ENABLED=1` + `ANTHROPIC_API_KEY` | Claude double-checks answers the rules can't settle |
 | `NOTIFY_LIVE=1` + `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` | Real texts to the family. Without it, alerts are only recorded and shown in the family view. |
 | `API_TOKEN` (server) + `EXPO_PUBLIC_API_TOKEN` (app) | Requires a shared token on every request |
