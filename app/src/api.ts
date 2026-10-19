@@ -50,7 +50,7 @@ export type DayRow = {
   checkin_id?: string;
 };
 
-export type Alert = { date: string; kind: string; sent_at: string; delivered: number; message: string };
+export type Alert = { date: string; kind: string; sent_at: string; delivered: number; message: string; was_real: number | null };
 
 // One answer: a recording (phone) or typed text (web demo, or no mic).
 export type Answer = { exerciseId: string; audioUri?: string; transcript?: string };
@@ -84,8 +84,14 @@ export const api = {
   dayOff: (id: string, date: string, off: boolean) =>
     call(`/people/${id}/days-off`, { method: 'POST', body: JSON.stringify({ date, off }) }),
 
-  async submit(id: string, answers: Answer[]): Promise<Result> {
+  ease: (checkinId: string, rating: number) =>
+    call(`/checkins/${checkinId}/ease`, { method: 'POST', body: JSON.stringify({ rating }) }),
+  alertFeedback: (id: string, date: string, kind: string, wasReal: boolean) =>
+    call(`/people/${id}/alerts/feedback`, { method: 'POST', body: JSON.stringify({ date, kind, was_real: wasReal }) }),
+
+  async submit(id: string, answers: Answer[], durationS: number): Promise<Result> {
     const form = new FormData();
+    form.append('duration_s', String(Math.round(durationS)));
     const typed = answers.filter((a) => a.transcript !== undefined && !a.audioUri);
     form.append('answers', JSON.stringify(typed.map((a) => ({ exercise_id: a.exerciseId, transcript: a.transcript }))));
     for (const a of answers) {

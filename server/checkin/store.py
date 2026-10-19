@@ -37,6 +37,8 @@ create table if not exists checkins (
   result text not null,
   features text,
   family_says_different integer,
+  duration_s real,
+  ease integer,
   unique (person_id, local_date)
 );
 create table if not exists days_off (
@@ -51,7 +53,16 @@ create table if not exists alerts (
   sent_at text not null,
   delivered integer not null default 0,
   message text,
+  was_real integer,
+  family_note text,
   primary key (person_id, date, kind)
+);
+-- The team's own scoring of each answer, to measure how often the app agrees.
+create table if not exists hand_scores (
+  checkin_id text not null references checkins(id) on delete cascade,
+  exercise_id text not null,
+  value text not null,
+  primary key (checkin_id, exercise_id)
 );
 """
 
@@ -67,10 +78,23 @@ def db():
     conn.execute("pragma foreign_keys = on")
     try:
         conn.executescript(SCHEMA)
+        _migrate(conn)
         yield conn
         conn.commit()
     finally:
         conn.close()
+
+
+# Columns added after the first release; older databases get them here.
+_ADDED = {"checkins": ["duration_s real", "ease integer"], "alerts": ["was_real integer", "family_note text"]}
+
+
+def _migrate(conn) -> None:
+    for table, cols in _ADDED.items():
+        have = {r[1] for r in conn.execute(f"pragma table_info({table})")}
+        for col in cols:
+            if col.split()[0] not in have:
+                conn.execute(f"alter table {table} add column {col}")
 
 
 def _person(row) -> dict | None:
@@ -118,16 +142,56 @@ def all_people() -> list[dict]:
 
 
 def add_checkin(pid: str, day: date, completed_at: str, local_hour: float,
-                result: dict, features: dict | None, family_says_different: bool | None) -> str:
+                result: dict, features: dict | None, family_says_different: bool | None,
+                duration_s: float | None = None) -> str:
     cid = uuid.uuid4().hex[:12]
     with db() as c:
         c.execute(
-            "insert into checkins values (?,?,?,?,?,?,?,?)",
+            "insert into checkins (id, person_id, local_date, completed_at, local_hour, result, features,"
+            " family_says_different, duration_s) values (?,?,?,?,?,?,?,?,?)",
             (cid, pid, day.isoformat(), completed_at, local_hour, json.dumps(result),
              json.dumps(features) if features else None,
-             None if family_says_different is None else int(family_says_different)),
+             None if family_says_different is None else int(family_says_different), duration_s),
         )
     return cid
+
+
+def set_ease(cid: str, rating: int) -> None:
+    with db() as c:
+        c.execute("update checkins set ease = ? where id = ?", (rating, cid))
+
+
+def set_alert_feedback(pid: str, day: str, kind: str, was_real: bool, note: str | None) -> bool:
+    with db() as c:
+        cur = c.execute("update alerts set was_real = ?, family_note = ? where person_id = ? and date = ? and kind = ?",
+                        (int(was_real), note, pid, day, kind))
+        return cur.rowcount > 0
+
+
+def set_hand_scores(cid: str, values: dict[str, str]) -> None:
+    with db() as c:
+        for ex_id, v in values.items():
+            c.execute("insert or replace into hand_scores values (?,?,?)", (cid, ex_id, v))
+
+
+def hand_scores() -> dict[str, dict[str, str]]:
+    out: dict[str, dict[str, str]] = {}
+    with db() as c:
+        for cid, ex_id, v in c.execute("select checkin_id, exercise_id, value from hand_scores"):
+            out.setdefault(cid, {})[ex_id] = v
+    return out
+
+
+def all_alerts() -> list[dict]:
+    with db() as c:
+        return [dict(r) for r in c.execute("select * from alerts")]
+
+
+def audio_path(cid: str, exercise_id: str) -> Path | None:
+    folder = AUDIO_DIR / cid
+    if not folder.exists():
+        return None
+    return next(folder.glob(f"{exercise_id}.*"), None)
 
 
 def update_checkin_result(cid: str, result: dict, family_says_different: bool) -> None:
@@ -180,8 +244,8 @@ def sent_alerts(pid: str) -> set[tuple[str, str]]:
 
 def record_alert(pid: str, day: str, kind: str, sent_at: str, delivered: bool, message: str) -> None:
     with db() as c:
-        c.execute("insert or ignore into alerts values (?,?,?,?,?,?)",
-                  (pid, day, kind, sent_at, int(delivered), message))
+        c.execute("insert or ignore into alerts (person_id, date, kind, sent_at, delivered, message)"
+                  " values (?,?,?,?,?,?)", (pid, day, kind, sent_at, int(delivered), message))
 
 
 def alerts(pid: str) -> list[dict]:

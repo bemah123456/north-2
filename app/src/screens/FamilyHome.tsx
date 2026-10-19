@@ -96,10 +96,28 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
         <>
           <Text style={styles.section}>Alerts</Text>
           {alerts.slice(0, 5).map((a) => (
-            <Body key={`${a.date}${a.kind}`} muted>
-              {niceDate(a.date)}: {a.message}
-              {a.delivered ? '' : ' (not sent: test mode)'}
-            </Body>
+            <Card key={`${a.date}${a.kind}`}>
+              <Body muted>
+                {niceDate(a.date)}: {a.message}
+                {a.delivered ? '' : ' (not sent: test mode)'}
+              </Body>
+              {a.kind.startsWith('missed') &&
+                (a.was_real === null ? (
+                  <>
+                    <Body>Was this a real concern?</Body>
+                    <View style={styles.row}>
+                      <View style={{ flex: 1, marginRight: 6 }}>
+                        <BigButton label="Yes" kind="secondary" onPress={() => api.alertFeedback(personId, a.date, a.kind, true).then(load)} />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 6 }}>
+                        <BigButton label="No, all fine" kind="secondary" onPress={() => api.alertFeedback(personId, a.date, a.kind, false).then(load)} />
+                      </View>
+                    </View>
+                  </>
+                ) : (
+                  <Body muted>You said: {a.was_real ? 'a real concern' : 'all fine'}.</Body>
+                ))}
+            </Card>
           ))}
         </>
       )}

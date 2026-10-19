@@ -35,6 +35,9 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
   const [typed, setTyped] = useState('');
   const [useTyping, setUseTyping] = useState(typedMode);
   const answers = useRef<Answer[]>([]);
+  const startedAt = useRef(Date.now());
+  const [checkinId, setCheckinId] = useState('');
+  const [rated, setRated] = useState(false);
 
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
   const state = useAudioRecorderState(recorder, 250);
@@ -153,9 +156,10 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
     }
     setPhase('sending');
     try {
-      await api.submit(personId, answers.current);
+      const result = await api.submit(personId, answers.current, (Date.now() - startedAt.current) / 1000);
+      setCheckinId(result.checkin_id);
       setPhase('done');
-      Speech.speak('All done. Thank you, see you tomorrow!', { rate: SPEECH_RATE });
+      Speech.speak('All done. Thank you! How easy was that?', { rate: SPEECH_RATE });
     } catch (e) {
       setError(String((e as Error).message));
       setPhase('error');
@@ -176,7 +180,27 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
     return (
       <Screen>
         <Title>All done. Thank you!</Title>
-        <Body>See you tomorrow.</Body>
+        {checkinId && !rated ? (
+          <>
+            <Body>How easy was that? Tap a number: 1 is very hard, 5 is very easy.</Body>
+            <View style={styles.ratings}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <View key={n} style={{ flex: 1 }}>
+                  <BigButton
+                    label={String(n)}
+                    kind="secondary"
+                    onPress={() => {
+                      setRated(true);
+                      api.ease(checkinId, n).catch(() => {});
+                    }}
+                  />
+                </View>
+              ))}
+            </View>
+          </>
+        ) : (
+          <Body>See you tomorrow.</Body>
+        )}
         <BigButton label="Back" onPress={onFinished} />
       </Screen>
     );
@@ -222,6 +246,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
 }
 
 const styles = StyleSheet.create({
+  ratings: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
   step: { fontSize: type.small, color: colors.muted, marginBottom: 12 },
   prompt: { fontSize: type.huge, lineHeight: 46, fontWeight: '600', color: colors.text, marginBottom: 32 },

@@ -14,10 +14,10 @@ from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
-from . import notify, store, transcribe
+from . import notify, report, store, transcribe
 from .baseline import load_model
 from .exercises import build_checkin
 from .features import FEATURE_DIRECTIONS
@@ -73,6 +73,17 @@ class PersonPatch(BaseModel):
 
 class FamilyReport(BaseModel):
     different: bool
+
+
+class Ease(BaseModel):
+    rating: int = Field(ge=1, le=5)
+
+
+class AlertFeedback(BaseModel):
+    date: date
+    kind: str
+    was_real: bool
+    note: str | None = None
 
 
 class DayOff(BaseModel):
@@ -179,7 +190,9 @@ async def submit_checkin(pid: str, request: Request) -> dict:
     if is_late([c["local_hour"] for c in previous], hour):
         result["reasons"].append("checked in much later in the day than usual")
 
-    cid = store.add_checkin(pid, day, utcnow().isoformat(), hour, result, result["features"], family_flag)
+    duration = form.get("duration_s")
+    cid = store.add_checkin(pid, day, utcnow().isoformat(), hour, result, result["features"], family_flag,
+                            float(duration) if duration else None)
     for ex_id, (data, _, ext) in audio.items():
         store.save_audio(cid, ex_id, data, ext)
     result["checkin_id"] = cid
@@ -278,3 +291,81 @@ def export_features() -> str:
             if c["features"]:
                 w.writerow([p["id"], c["local_date"], "", *(round(c["features"][k], 4) for k in names)])
     return buf.getvalue()
+
+
+@app.post("/checkins/{cid}/ease", dependencies=[Depends(auth)])
+def ease(cid: str, body: Ease) -> dict:
+    """The senior's answer to "How easy was that?" (1 to 5)."""
+    if not store.get_checkin(cid):
+        raise HTTPException(404, "No such check-in")
+    store.set_ease(cid, body.rating)
+    return {"rating": body.rating}
+
+
+@app.post("/people/{pid}/alerts/feedback", dependencies=[Depends(auth)])
+def alert_feedback(pid: str, body: AlertFeedback) -> dict:
+    """The family's answer to "was this missed check-in a real concern?"."""
+    if not store.set_alert_feedback(pid, body.date.isoformat(), body.kind, body.was_real, body.note):
+        raise HTTPException(404, "No such alert")
+    return {"ok": True}
+
+
+@app.get("/checkins/{cid}/audio/{exercise_id}", dependencies=[Depends(auth)])
+def audio(cid: str, exercise_id: str) -> FileResponse:
+    path = store.audio_path(cid, exercise_id)
+    if not path:
+        raise HTTPException(404, "No recording")
+    return FileResponse(path)
+
+
+HAND_COLUMNS = ["checkin_id", "person", "date", "exercise_id", "kind", "prompt", "transcript",
+                "app_says", "recording", "hand_score"]
+
+
+@app.get("/export/hand-scoring.csv", dependencies=[Depends(auth)], response_class=PlainTextResponse)
+def export_hand_scoring(request: Request) -> str:
+    """One row per answer for the team to score by ear. In hand_score write
+    "right" or "wrong" for orientation answers, and for the backwards task
+    the number of items said in the right order. Leave rows you skip blank,
+    then send the file back to POST /import/hand-scoring."""
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(HAND_COLUMNS)
+    done = store.hand_scores()
+    base = str(request.base_url).rstrip("/")
+    for p in store.all_people():
+        for c in store.checkins(p["id"]):
+            for item in c["result"]["items"]:
+                if item["part"] == "alertness":
+                    continue
+                if item["part"] == "orientation":
+                    app_says = {True: "right", False: "wrong", None: "unsure"}[item.get("correct")]
+                else:
+                    app_says = f"{item['correct_items']} in order"
+                has_audio = store.audio_path(c["id"], item["exercise_id"]) is not None
+                w.writerow([c["id"], p["name"], c["local_date"], item["exercise_id"], item["kind"],
+                            item["prompt"], item["transcript"], app_says,
+                            f"{base}/checkins/{c['id']}/audio/{item['exercise_id']}" if has_audio else "",
+                            done.get(c["id"], {}).get(item["exercise_id"], "")])
+    return buf.getvalue()
+
+
+@app.post("/import/hand-scoring", dependencies=[Depends(auth)])
+async def import_hand_scoring(request: Request) -> dict:
+    """Body: the CSV from /export/hand-scoring.csv with hand_score filled in."""
+    text = (await request.body()).decode("utf-8-sig")
+    per: dict[str, dict[str, str]] = {}
+    for row in csv.DictReader(io.StringIO(text)):
+        value = (row.get("hand_score") or "").strip()
+        if value:
+            per.setdefault(row["checkin_id"], {})[row["exercise_id"]] = value
+    for cid, values in per.items():
+        if store.get_checkin(cid):
+            store.set_hand_scores(cid, values)
+    return {"checkins": len(per), "answers": sum(len(v) for v in per.values())}
+
+
+@app.get("/reports/testing", dependencies=[Depends(auth)])
+def testing_report(format: str = "json"):
+    r = report.testing_report()
+    return PlainTextResponse(report.to_markdown(r)) if format == "md" else r
