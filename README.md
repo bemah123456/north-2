@@ -7,6 +7,7 @@ Shared project repository for North 2: a voice check-in that helps families catc
 - `daily-checkin/`: the hackathon app. A Python scoring server (`server/`), an Expo phone app (`app/`), the Supabase schema (`supabase/`), screenshots, the demo recording script (`tools/`) and the submitted demo video (`submission/`). Its own README explains how to run it.
 - `research/delirium_speech_sources.md`: public clips, studies and datasets on how delirium sounds in speech.
 - `research/delirium_competitors.md`: existing delirium and speech-cognition tools and where they fall short.
+- `research/cloud-4at-asr/`: eight speech models compared on spoken 4AT answers, how often each makes a healthy person look impaired, and transcript fixes that halve those false alarms.
 
 Some work also happens in the Claude project's shared files before it lands here. The copies in this repository are the ones to review and build on; new work from the project is brought in through pull requests.
 
