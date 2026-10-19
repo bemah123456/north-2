@@ -72,18 +72,26 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
     if (exercises.length) ask(exercises[index]);
   }, [exercises, index]);
 
-  // Move on after a stretch of quiet once they've said something.
+  // Move on after a stretch of quiet once they've said something. This polls
+  // rather than reacting to level changes: steady silence reports the same
+  // level over and over, which would never re-trigger an effect.
+  const level = useRef<number | undefined>(undefined);
+  level.current = state.metering;
   useEffect(() => {
-    if (phase !== 'listening' || state.metering === undefined) return;
-    const now = Date.now();
-    if (state.metering > SPEAKING_DB) {
-      heardSpeech.current = true;
-      quietSince.current = null;
-    } else if (heardSpeech.current) {
-      quietSince.current ??= now;
-      if (now - quietSince.current > QUIET_TO_FINISH_MS) finishAnswer();
-    }
-  }, [state.metering, phase]);
+    if (phase !== 'listening') return;
+    const timer = setInterval(() => {
+      if (level.current === undefined) return;
+      const now = Date.now();
+      if (level.current > SPEAKING_DB) {
+        heardSpeech.current = true;
+        quietSince.current = null;
+      } else if (heardSpeech.current) {
+        quietSince.current ??= now;
+        if (now - quietSince.current > QUIET_TO_FINISH_MS) finishRef.current();
+      }
+    }, 250);
+    return () => clearInterval(timer);
+  }, [phase]);
 
   function ask(ex: Exercise) {
     setTyped('');
@@ -110,6 +118,9 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
     setPhase('listening');
     timeLimit.current = setTimeout(finishAnswer, ex.listen_seconds * 1000);
   }
+
+  const finishRef = useRef<() => void>(() => {});
+  finishRef.current = finishAnswer;
 
   async function finishAnswer() {
     if (finishing.current) return;
