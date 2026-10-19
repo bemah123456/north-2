@@ -47,7 +47,8 @@ Scan the QR code with Expo Go on a phone that's on the same Wi-Fi. Press `w` for
 
 | Setting | What it turns on |
 | --- | --- |
-| `STT_PROVIDER=local` | Free speech-to-text for recorded answers: Whisper runs on the server (`pip install -r requirements-local.txt`, plus ffmpeg). `LOCAL_WHISPER_MODEL` picks the weights, either a Hugging Face id (default `openai/whisper-small`) or the folder of the model fine-tuned on older voices. Whisper tends to drop "um" and "uh", so the filler measure is weaker with it. |
+| `STT_PROVIDER=local` | Free speech-to-text for recorded answers: Whisper runs on the server (`pip install -r requirements-local.txt`, plus ffmpeg). `LOCAL_WHISPER_MODEL` picks the weights, either a Hugging Face id (default `openai/whisper-small.en`, the most accurate in the project's speech model comparison) or the folder of the model fine-tuned on older voices. Whisper tends to drop "um" and "uh", so the filler measure is weaker with it. |
+| `STT_PROVIDER=parakeet` | Another free option: NVIDIA Parakeet TDT 0.6B v2 on the CPU. `pip install sherpa-onnx`, unpack `sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8` from the sherpa-onnx releases, and set `PARAKEET_DIR` to it. |
 | `STT_PROVIDER=deepgram` + `DEEPGRAM_API_KEY` | Paid alternative that keeps fillers (or `STT_PROVIDER=openai` + `OPENAI_API_KEY`). Without any provider, only typed answers work. |
 | `JUDGE_ENABLED=1` + `ANTHROPIC_API_KEY` | Claude double-checks answers the rules can't settle |
 | `NOTIFY_LIVE=1` + `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` | Real texts to the family. Without it, alerts are only recorded and shown in the family view. |
@@ -68,6 +69,8 @@ Run the missed check-in job every 10 minutes: `curl -X POST http://<server>/jobs
 3. `python3 -m checkin.train --csv rows.csv`. It reports accuracy on held-out people and overwrites `model.json`.
 
 ## Known gaps
+
+- Recorded answers get common speech-to-text slips fixed before scoring ("eighty too", "20/26", a countdown heard as "1918"). When a clip has speech but the transcript can't be an answer, it's left for a person to check rather than counted wrong. With loud background TV, every model tested still makes healthy people look impaired too often.
 
 - Not tested on a real phone yet. The microphone, the quiet-detection threshold (`SPEAKING_DB` in `CheckIn.tsx`) and spoken prompts need a check on iPhone and Android.
 - Server push notifications need a development build (`eas build --profile development`), because Expo Go no longer supports remote push on Android. The daily reminder is scheduled on the phone itself and works in Expo Go.

@@ -74,3 +74,22 @@ def test_other_attention_tasks():
     count = "twenty nineteen eighteen seventeen sixteen fifteen fourteen thirteen twelve eleven ten nine"
     assert A.score_attention("countdown_20", count)["score"] == 0
     assert A.score_attention("countdown_20", "20 19 18")["score"] == 1
+
+
+def test_speech_to_text_slips_are_fixed():
+    birth, today = date(1944, 3, 14), date(2026, 10, 19)
+    assert A.check_age("eighty too", birth, today) is True
+    assert A.check_age("I'm eighty for", birth, today) is False  # 84 is still wrong
+    assert A.check_year("it's 20/26", today) is True
+    assert A.check_year("twenty six, I think", today) is True
+    assert A.check_year("twenty five", today) is False
+    glued = A.score_attention("countdown_20", "20, 1918, 17, 16, 15, 14, 13, 12, 11, 10, 9")
+    assert glued["correct_items"] == 12 and glued["score"] == 0
+
+
+def test_misheard():
+    assert A.misheard("age", "")
+    assert A.misheard("age", "I made it too")
+    assert not A.misheard("age", "I don't know")
+    assert not A.misheard("dob", "March I think")
+    assert not A.misheard("place", "at the station")

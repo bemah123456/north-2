@@ -1,3 +1,9 @@
+import shutil
+import subprocess
+
+import numpy as np
+import pytest
+
 from checkin import transcribe
 
 
@@ -14,6 +20,7 @@ def test_local_whisper_word_chunks(monkeypatch):
 
     monkeypatch.setenv("STT_PROVIDER", "local")
     monkeypatch.setattr(transcribe, "_local_pipeline", fake_pipeline)
+    monkeypatch.setattr(transcribe, "_decode_16k", lambda audio: np.zeros(16000, dtype=np.float32))
     text, words = transcribe.transcribe(b"audio", "audio/m4a")
     assert text == "I'm at home."
     assert [w.text for w in words] == ["I'm", "at", "home."]
@@ -24,3 +31,33 @@ def test_local_whisper_word_chunks(monkeypatch):
 def test_no_provider(monkeypatch):
     monkeypatch.delenv("STT_PROVIDER", raising=False)
     assert transcribe.provider() is None
+
+
+def _make_clip(tmp_path, source: str, codec_args: list[str], name: str) -> bytes:
+    out = tmp_path / name
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-f", "lavfi", "-i", source, "-ar", "16000",
+                    *codec_args, str(out)], check=True)
+    return out.read_bytes()
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="needs ffmpeg")
+def test_decodes_m4a_with_index_at_end(tmp_path):
+    # Android and iOS recorders write the m4a index after the audio, which
+    # ffmpeg can't read from a pipe.
+    m4a = _make_clip(tmp_path, "sine=frequency=440:duration=1", ["-c:a", "aac"], "a.m4a")
+    assert abs(len(transcribe._decode_16k(m4a)) - 16000) < 2000
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="needs ffmpeg")
+def test_has_speech(tmp_path):
+    silence = _make_clip(tmp_path, "anullsrc=r=16000:cl=mono:d=2", [], "quiet.wav")
+    tone = _make_clip(tmp_path, "sine=frequency=300:duration=0.5,apad=pad_dur=1.5", [], "tone.wav")
+    assert transcribe.has_speech(silence) is False
+    assert transcribe.has_speech(tone) is True
+
+
+def test_parakeet_tokens_join_into_words():
+    words = transcribe._words_from_tokens([" I", "'m", " at", " ho", "me", "."],
+                                          [0.5, 0.6, 0.9, 1.1, 1.2, 1.3], [0.1, 0.1, 0.1, 0.1, 0.1, 0.05])
+    assert [w.text for w in words] == ["I'm", "at", "home."]
+    assert words[2].start == 1.1 and words[2].end == pytest.approx(1.35)

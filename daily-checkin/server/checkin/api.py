@@ -178,6 +178,8 @@ async def submit_checkin(pid: str, request: Request) -> dict:
             raise HTTPException(503, "Speech-to-text isn't set up on the server yet; "
                                      "set STT_PROVIDER or use typed answers")
         given[ex.id] = {"transcript": text, "words": words}
+        if transcribe.has_speech(data):
+            given[ex.id]["heard_speech"] = True
 
     previous = store.checkins(pid)
     history = [c["features"] for c in previous

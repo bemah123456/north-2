@@ -108,3 +108,22 @@ def test_unclear_place_goes_to_review_not_mistake():
     r = score_checkin(PERSON, DAY, build_checkin("p1", DAY), answers(DAY, {"place": "in the kitchen"}), [])
     assert r["needs_review"] == 1
     assert r["parts"]["amt4"] == 0
+
+
+def test_misheard_recordings_wait_for_a_person():
+    given = answers(DAY, {"age": "I made it too", "year": ""})
+    plain = score_checkin(PERSON, DAY, build_checkin("p1", DAY), given, history())
+    for v in given.values():
+        v["heard_speech"] = True
+    heard = score_checkin(PERSON, DAY, build_checkin("p1", DAY), given, history())
+    assert plain["parts"]["amt4"] == 2
+    assert heard["parts"]["amt4"] == 0 and heard["needs_review"] == 2
+    assert {i["kind"] for i in heard["items"] if i.get("misheard")} == {"age", "year"}
+
+
+def test_unheard_attention_is_not_a_failure():
+    given = answers(DAY)
+    att = next(ex for ex in build_checkin("p1", DAY) if ex.part == "attention")
+    given[att.id] = {"transcript": "", "words": [], "heard_speech": True}
+    r = score_checkin(PERSON, DAY, build_checkin("p1", DAY), given, history())
+    assert r["parts"]["attention"] == 0 and r["needs_review"] == 1
