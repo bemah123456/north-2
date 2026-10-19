@@ -135,6 +135,12 @@ quiet-room check, it is worth offering.
 
 ## Files
 
+The m4a fix, the transcript fixes and the Parakeet option have since been
+applied to the app in [PR #2](https://github.com/bemah123456/north-2/pull/2);
+the copies under `app-patch/` and `scripts/robust.py` are the versions this
+study measured.
+
+
 - `scripts/`: build the clips (`make_audio.py`), run a model
   (`run_asr.py` for ONNX, `run_hf.py` for a Hugging Face folder such as the
   PC's fine-tuned model), score (`analyze.py`), fixes (`robust.py`).
