@@ -38,8 +38,8 @@ _ORDINALS = {
 
 
 # Speech-to-text slips that make a healthy answer look wrong, found by
-# running 8 speech models over 3,381 synthetic check-in clips (see
-# research/stt-comparison). None of them turned a wrong answer right there.
+# running 8 speech models over 3,381 synthetic check-in clips. None of
+# them turned a wrong answer into a right one in that test set.
 _TENS_RE = r"(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|[2-9]0)"
 _SOUND_ALIKE = {"to": "two", "too": "two", "for": "four", "won": "one", "ate": "eight", "tree": "three"}
 DONT_KNOW = re.compile(r"\b(don'?t|do not|not sure|no idea|can'?t|cannot|forget|forgot)\b", re.I)
