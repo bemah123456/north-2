@@ -4,17 +4,18 @@
 import { useState } from 'react';
 import { Text } from 'react-native';
 
-import { api, Person } from '../api';
+import { api, Person, server } from '../api';
 import { colors, type } from '../theme';
 import { BigButton, Body, Field, Screen, Title } from '../ui';
 
 export type Role = 'senior' | 'family';
 
 export default function Setup({ onReady }: { onReady: (role: Role, personId: string) => void }) {
-  const [step, setStep] = useState<'choose' | 'family' | 'senior' | 'code'>('choose');
+  const [step, setStep] = useState<'choose' | 'family' | 'senior' | 'code' | 'server'>('choose');
   const [error, setError] = useState('');
   const [created, setCreated] = useState<Person | null>(null);
   const [code, setCode] = useState('');
+  const [address, setAddress] = useState(server.get());
   const [form, setForm] = useState({
     name: '', birth_date: '', place: 'home', city: '', checkin_time: '09:00', family_name: '', family_phone: '',
   });
@@ -53,6 +54,28 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
     }
   }
 
+  async function saveServer() {
+    setError('');
+    try {
+      setAddress(await server.set(address));
+      setStep('choose');
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
+  if (step === 'server') {
+    return (
+      <Screen>
+        <Title>Server address</Title>
+        <Body>Only change this if whoever runs your check-in server gave you an address.</Body>
+        <Field label="Address" value={address} onChangeText={setAddress} autoCapitalize="none" autoCorrect={false} keyboardType="url" />
+        {!!error && <Body>{error}</Body>}
+        <BigButton label="Save" onPress={saveServer} />
+        <BigButton label="Back" kind="secondary" onPress={() => { setError(''); setAddress(server.get()); setStep('choose'); }} />
+      </Screen>
+    );
+  }
   if (step === 'choose') {
     return (
       <Screen>
@@ -61,6 +84,9 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
         <BigButton label="I'm setting this up for a family member" onPress={() => setStep('family')} />
         <BigButton label="My family gave me a code" kind="secondary" onPress={() => setStep('senior')} />
         <Body muted>Screening only, not a diagnosis.</Body>
+        <Text accessibilityRole="button" onPress={() => setStep('server')} style={{ fontSize: type.small, color: colors.muted, marginTop: 24 }}>
+          Server: {server.get()} (change)
+        </Text>
       </Screen>
     );
   }

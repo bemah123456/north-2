@@ -45,7 +45,7 @@ npm install
 EXPO_PUBLIC_API_URL=http://<your computer's LAN IP>:8000 npx expo start
 ```
 
-Scan the QR code with Expo Go on a phone that's on the same Wi-Fi. Press `w` for the web version, which types answers instead of using the microphone unless you set `EXPO_PUBLIC_WEB_MIC=1`.
+Scan the QR code with Expo Go on a phone that's on the same Wi-Fi. For an installable build instead, see [LAUNCH.md](LAUNCH.md). Press `w` for the web version, which types answers instead of using the microphone unless you set `EXPO_PUBLIC_WEB_MIC=1`.
 
 ## Keys and settings (all optional; nothing is sent anywhere without them)
 
