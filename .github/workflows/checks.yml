@@ -1,0 +1,38 @@
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: daily-checkin/server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: daily-checkin/server/requirements.txt
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg  # the audio decoding tests need it
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
+
+  app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: daily-checkin/app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: daily-checkin/app/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit

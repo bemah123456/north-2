@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spoken 4AT Prototype</title>
+<style>
+  :root { --bg:#f7f6f2; --card:#fff; --ink:#1d1d1b; --muted:#66645e; --line:#e2dfd6; --accent:#2f6f5e; --warn:#a4492b; --ok:#2f6f5e; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#161614; --card:#21211e; --ink:#eeece6; --muted:#a6a39b; --line:#34332e; --accent:#7cc3ad; --warn:#e8916f; --ok:#7cc3ad; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:18px/1.5 system-ui, sans-serif; }
+  main { max-width:640px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:26px; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 24px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; margin-bottom:16px; }
+  section[hidden] { display:none; }
+  label { display:block; margin:10px 0 4px; font-weight:600; }
+  input { width:100%; font:inherit; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); }
+  .row { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+  button { font:inherit; padding:12px 18px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--ink); cursor:pointer; }
+  button.primary { background:var(--accent); color:var(--card); border-color:var(--accent); }
+  .big { font-size:24px; font-weight:600; margin:8px 0 12px; }
+  .heard { color:var(--muted); min-height:1.5em; font-style:italic; }
+  .score { font-size:44px; font-weight:700; }
+  .warn { color:var(--warn); } .ok { color:var(--ok); }
+  table { width:100%; border-collapse:collapse; margin-top:12px; font-size:16px; }
+  td { padding:6px 0; border-bottom:1px solid var(--line); } td:last-child { text-align:right; }
+  .note { font-size:14px; color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Spoken 4AT</h1>
+  <p class="sub">Research prototype. Not a medical device. If you are worried, call a doctor.</p>
+
+  <section id="s-setup">
+    <div class="big">About the person</div>
+    <p class="note">Filled in once by a family member, used to check the answers. Saved only in this browser.</p>
+    <label for="age">Age</label><input id="age" type="number" min="40" max="120">
+    <label for="dob">Date of birth</label><input id="dob" type="date">
+    <label for="place">Where the test happens (words that count as right, comma separated)</label>
+    <input id="place" placeholder="home, house">
+    <div class="row"><button class="primary" id="b-setup">Continue</button></div>
+  </section>
+
+  <section id="s-family" hidden>
+    <div class="big">Two questions for the family member</div>
+    <label>Is the person clearly drowsy (hard to keep awake) or agitated right now?</label>
+    <div class="row"><button data-alert="1">Yes</button><button data-alert="0">No</button></div>
+    <label style="margin-top:20px">In the last 2 weeks, has their thinking or alertness suddenly changed or come and gone, and is it still happening today?</label>
+    <div class="row"><button data-acute="1">Yes</button><button data-acute="0">No</button></div>
+    <div class="row"><button class="primary" id="b-family" disabled>Start the voice part</button></div>
+  </section>
+
+  <section id="s-task" hidden>
+    <div class="note" id="task-step"></div>
+    <div class="big" id="task-q"></div>
+    <div class="heard" id="task-heard"></div>
+    <div class="row"><button class="primary" id="b-done">Done answering</button><button id="b-repeat">Repeat question</button></div>
+  </section>
+
+  <section id="s-result" hidden>
+    <div class="note">4AT score (0 to 12)</div>
+    <div class="score" id="r-total"></div>
+    <p id="r-meaning"></p>
+    <table id="r-table"></table>
+    <p class="note" id="r-baseline"></p>
+    <div class="row"><button id="b-normal">This was a normal day: save as baseline</button><button id="b-again">Test again</button></div>
+  </section>
+</main>
+
+<script src="scorer.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  };
+  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const show = id => document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== id);
+
+  const saved = store.get('4at-person', {});
+  if (saved.age) { $('age').value = saved.age; $('dob').value = saved.dob; $('place').value = saved.place; }
+
+  let person, alert = null, acute = null, answers = {}, monthWords = [], lastResult = null;
+
+  $('b-setup').onclick = () => {
+    if (!$('age').value || !$('dob').value || !$('place').value) return alert0('Please fill in all three.');
+    person = { age: +$('age').value, dob: $('dob').value, place: $('place').value };
+    store.set('4at-person', person);
+    show('s-family');
+  };
+  function alert0(m) { window.alert(m); }
+
+  document.querySelectorAll('[data-alert]').forEach(b => b.onclick = () => { alert = b.dataset.alert === '1'; mark(b, '[data-alert]'); });
+  document.querySelectorAll('[data-acute]').forEach(b => b.onclick = () => { acute = b.dataset.acute === '1'; mark(b, '[data-acute]'); });
+  function mark(btn, sel) {
+    document.querySelectorAll(sel).forEach(x => x.classList.toggle('primary', x === btn));
+    $('b-family').disabled = alert === null || acute === null;
+  }
+
+  const TASKS = [
+    { key: 'age', q: 'How old are you?' },
+    { key: 'birth', q: 'What is your date of birth?' },
+    { key: 'place', q: 'Where are we right now?' },
+    { key: 'year', q: 'What year is it?' },
+    { key: 'months', q: 'Please tell me the months of the year backwards, starting with December.' },
+  ];
+  let ti = 0, rec = null, t0 = 0, words = [], finalText = '';
+
+  $('b-family').onclick = () => {
+    if (!Rec) return alert0('This browser has no speech recognition. Try Chrome or Edge.');
+    ti = 0; answers = {}; show('s-task'); ask();
+  };
+  $('b-repeat').onclick = () => ask();
+  $('b-done').onclick = () => finishTask();
+
+  function speak(text) {
+    return new Promise(res => {
+      if (!window.speechSynthesis) return res();
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 0.9; u.onend = res; u.onerror = res;
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+    });
+  }
+
+  async function ask() {
+    stopRec();
+    const t = TASKS[ti];
+    $('task-step').textContent = `Question ${ti + 1} of ${TASKS.length}`;
+    $('task-q').textContent = t.q; $('task-heard').textContent = '';
+    await speak(t.q);
+    words = []; finalText = ''; t0 = performance.now();
+    rec = new Rec(); rec.lang = 'en-US'; rec.interimResults = true; rec.continuous = true;
+    // Word onset times are approximated by when each new word first appears in the results.
+    rec.onresult = e => {
+      let text = '';
+      for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript + ' ';
+      const toks = text.trim().split(/\s+/).filter(Boolean);
+      const now = (performance.now() - t0) / 1000;
+      toks.forEach((tok, i) => { if (!words[i]) words[i] = { text: tok, t: now }; else words[i].text = tok; });
+      words.length = toks.length; finalText = text.trim();
+      $('task-heard').textContent = finalText;
+    };
+    rec.onend = () => { if (rec) try { rec.start(); } catch {} }; // keep listening until "Done"
+    rec.start();
+  }
+  function stopRec() { if (rec) { const r = rec; rec = null; r.onend = null; try { r.stop(); } catch {} } }
+
+  function finishTask() {
+    stopRec();
+    const t = TASKS[ti];
+    if (t.key === 'months') monthWords = words.slice(); else answers[t.key] = finalText;
+    ti++;
+    if (ti < TASKS.length) ask(); else results();
+  }
+
+  function results() {
+    const [y, m, d] = person.dob.split('-').map(Number);
+    const truth = { age: person.age, birth: { day: d, month: m, year: y }, year: new Date().getFullYear(),
+      placeWords: person.place.split(',').map(s => s.trim()).filter(Boolean) };
+    const amt4 = FourAT.scoreAMT4(answers, truth);
+    const months = FourAT.scoreMonthsBackwards(monthWords);
+    const r = FourAT.total4AT({ alertnessAbnormal: alert, amt4, months, acuteChange: acute });
+    lastResult = months;
+
+    $('r-total').textContent = r.total;
+    $('r-total').className = 'score ' + (r.total >= 4 ? 'warn' : 'ok');
+    $('r-meaning').textContent = r.meaning;
+    const fmt = v => v == null ? '–' : v.toFixed(1) + ' s';
+    $('r-table').innerHTML = [
+      ['Alertness (family)', r.parts.alertness],
+      ['Orientation: ' + Object.entries(amt4.items).map(([k, ok]) => k + (ok ? ' ✓' : ' ✗')).join(', '), r.parts.amt4],
+      ['Months backwards: ' + months.correctInSequence + ' in order', r.parts.attention],
+      ['Sudden change (family)', r.parts.acuteChange],
+      ['Time to first month', fmt(months.latencySec)],
+      ['Average gap between months', fmt(months.meanGapSec)],
+    ].map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('');
+
+    const base = store.get('4at-baseline', []);
+    const z = FourAT.compareToBaseline(months, base);
+    $('r-baseline').textContent = !z ? `Baseline: ${base.length} of 3 normal sessions saved. Save normal days to spot changes from this person's usual pace.`
+      : Object.values(z).some(v => v > 2) ? 'Noticeably slower than this person\'s usual pace. Worth mentioning to a doctor.'
+        : 'Pace is within this person\'s usual range.';
+    show('s-result');
+  }
+
+  $('b-normal').onclick = () => {
+    if (!lastResult) return;
+    const base = store.get('4at-baseline', []);
+    base.push({ latencySec: lastResult.latencySec, meanGapSec: lastResult.meanGapSec, durationSec: lastResult.durationSec, at: Date.now() });
+    store.set('4at-baseline', base.slice(-10));
+    $('b-normal').disabled = true; $('b-normal').textContent = 'Saved';
+  };
+  $('b-again').onclick = () => { alert = acute = null; $('b-normal').disabled = false; $('b-normal').textContent = 'This was a normal day: save as baseline';
+    document.querySelectorAll('[data-alert],[data-acute]').forEach(b => b.classList.remove('primary')); $('b-family').disabled = true; show('s-family'); };
+})();
+</script>
+</body>
+</html>

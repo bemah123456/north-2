@@ -1,0 +1,705 @@
+{
+ "speakers": 20,
+ "draws_per_test": 20,
+ "rows": [
+  {
+   "method": "app",
+   "condition": "normal",
+   "baseline_days": 2,
+   "tests": 4000,
+   "alarm_rate": 0.0018
+  },
+  {
+   "method": "app",
+   "condition": "normal",
+   "baseline_days": 3,
+   "tests": 4000,
+   "alarm_rate": 0.0015
+  },
+  {
+   "method": "app",
+   "condition": "normal",
+   "baseline_days": 4,
+   "tests": 4000,
+   "alarm_rate": 0.0015
+  },
+  {
+   "method": "app",
+   "condition": "normal",
+   "baseline_days": 5,
+   "tests": 4000,
+   "alarm_rate": 0.0015
+  },
+  {
+   "method": "app",
+   "condition": "normal",
+   "baseline_days": 6,
+   "tests": 4000,
+   "alarm_rate": 0.0005
+  },
+  {
+   "method": "app",
+   "condition": "normal",
+   "baseline_days": 7,
+   "tests": 4000,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "app",
+   "condition": "normal",
+   "baseline_days": 8,
+   "tests": 1800,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "app",
+   "condition": "normal",
+   "baseline_days": 9,
+   "tests": 200,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "app",
+   "condition": "hesitant",
+   "baseline_days": 2,
+   "tests": 4000,
+   "alarm_rate": 0.936
+  },
+  {
+   "method": "app",
+   "condition": "hesitant",
+   "baseline_days": 3,
+   "tests": 4000,
+   "alarm_rate": 0.9307
+  },
+  {
+   "method": "app",
+   "condition": "hesitant",
+   "baseline_days": 4,
+   "tests": 4000,
+   "alarm_rate": 0.928
+  },
+  {
+   "method": "app",
+   "condition": "hesitant",
+   "baseline_days": 5,
+   "tests": 4000,
+   "alarm_rate": 0.926
+  },
+  {
+   "method": "app",
+   "condition": "hesitant",
+   "baseline_days": 6,
+   "tests": 4000,
+   "alarm_rate": 0.9195
+  },
+  {
+   "method": "app",
+   "condition": "hesitant",
+   "baseline_days": 7,
+   "tests": 4000,
+   "alarm_rate": 0.9177
+  },
+  {
+   "method": "app",
+   "condition": "hesitant",
+   "baseline_days": 8,
+   "tests": 1800,
+   "alarm_rate": 0.9183
+  },
+  {
+   "method": "app",
+   "condition": "hesitant",
+   "baseline_days": 9,
+   "tests": 200,
+   "alarm_rate": 0.915
+  },
+  {
+   "method": "app",
+   "condition": "slow_tremor",
+   "baseline_days": 2,
+   "tests": 4000,
+   "alarm_rate": 0.0333
+  },
+  {
+   "method": "app",
+   "condition": "slow_tremor",
+   "baseline_days": 3,
+   "tests": 4000,
+   "alarm_rate": 0.0288
+  },
+  {
+   "method": "app",
+   "condition": "slow_tremor",
+   "baseline_days": 4,
+   "tests": 4000,
+   "alarm_rate": 0.027
+  },
+  {
+   "method": "app",
+   "condition": "slow_tremor",
+   "baseline_days": 5,
+   "tests": 4000,
+   "alarm_rate": 0.0245
+  },
+  {
+   "method": "app",
+   "condition": "slow_tremor",
+   "baseline_days": 6,
+   "tests": 4000,
+   "alarm_rate": 0.025
+  },
+  {
+   "method": "app",
+   "condition": "slow_tremor",
+   "baseline_days": 7,
+   "tests": 4000,
+   "alarm_rate": 0.0253
+  },
+  {
+   "method": "app",
+   "condition": "slow_tremor",
+   "baseline_days": 8,
+   "tests": 1800,
+   "alarm_rate": 0.025
+  },
+  {
+   "method": "app",
+   "condition": "slow_tremor",
+   "baseline_days": 9,
+   "tests": 200,
+   "alarm_rate": 0.025
+  },
+  {
+   "method": "shrink",
+   "condition": "normal",
+   "baseline_days": 2,
+   "tests": 4000,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "shrink",
+   "condition": "normal",
+   "baseline_days": 3,
+   "tests": 4000,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "shrink",
+   "condition": "normal",
+   "baseline_days": 4,
+   "tests": 4000,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "shrink",
+   "condition": "normal",
+   "baseline_days": 5,
+   "tests": 4000,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "shrink",
+   "condition": "normal",
+   "baseline_days": 6,
+   "tests": 4000,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "shrink",
+   "condition": "normal",
+   "baseline_days": 7,
+   "tests": 4000,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "shrink",
+   "condition": "normal",
+   "baseline_days": 8,
+   "tests": 1800,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "shrink",
+   "condition": "normal",
+   "baseline_days": 9,
+   "tests": 200,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "shrink",
+   "condition": "hesitant",
+   "baseline_days": 2,
+   "tests": 4000,
+   "alarm_rate": 0.9073
+  },
+  {
+   "method": "shrink",
+   "condition": "hesitant",
+   "baseline_days": 3,
+   "tests": 4000,
+   "alarm_rate": 0.9015
+  },
+  {
+   "method": "shrink",
+   "condition": "hesitant",
+   "baseline_days": 4,
+   "tests": 4000,
+   "alarm_rate": 0.9077
+  },
+  {
+   "method": "shrink",
+   "condition": "hesitant",
+   "baseline_days": 5,
+   "tests": 4000,
+   "alarm_rate": 0.905
+  },
+  {
+   "method": "shrink",
+   "condition": "hesitant",
+   "baseline_days": 6,
+   "tests": 4000,
+   "alarm_rate": 0.9022
+  },
+  {
+   "method": "shrink",
+   "condition": "hesitant",
+   "baseline_days": 7,
+   "tests": 4000,
+   "alarm_rate": 0.9022
+  },
+  {
+   "method": "shrink",
+   "condition": "hesitant",
+   "baseline_days": 8,
+   "tests": 1800,
+   "alarm_rate": 0.9006
+  },
+  {
+   "method": "shrink",
+   "condition": "hesitant",
+   "baseline_days": 9,
+   "tests": 200,
+   "alarm_rate": 0.9
+  },
+  {
+   "method": "shrink",
+   "condition": "slow_tremor",
+   "baseline_days": 2,
+   "tests": 4000,
+   "alarm_rate": 0.0222
+  },
+  {
+   "method": "shrink",
+   "condition": "slow_tremor",
+   "baseline_days": 3,
+   "tests": 4000,
+   "alarm_rate": 0.0217
+  },
+  {
+   "method": "shrink",
+   "condition": "slow_tremor",
+   "baseline_days": 4,
+   "tests": 4000,
+   "alarm_rate": 0.0222
+  },
+  {
+   "method": "shrink",
+   "condition": "slow_tremor",
+   "baseline_days": 5,
+   "tests": 4000,
+   "alarm_rate": 0.022
+  },
+  {
+   "method": "shrink",
+   "condition": "slow_tremor",
+   "baseline_days": 6,
+   "tests": 4000,
+   "alarm_rate": 0.022
+  },
+  {
+   "method": "shrink",
+   "condition": "slow_tremor",
+   "baseline_days": 7,
+   "tests": 4000,
+   "alarm_rate": 0.0225
+  },
+  {
+   "method": "shrink",
+   "condition": "slow_tremor",
+   "baseline_days": 8,
+   "tests": 1800,
+   "alarm_rate": 0.0222
+  },
+  {
+   "method": "shrink",
+   "condition": "slow_tremor",
+   "baseline_days": 9,
+   "tests": 200,
+   "alarm_rate": 0.025
+  },
+  {
+   "method": "capped",
+   "condition": "normal",
+   "baseline_days": 2,
+   "tests": 4000,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "capped",
+   "condition": "normal",
+   "baseline_days": 3,
+   "tests": 4000,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "capped",
+   "condition": "normal",
+   "baseline_days": 4,
+   "tests": 4000,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "capped",
+   "condition": "normal",
+   "baseline_days": 5,
+   "tests": 4000,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "capped",
+   "condition": "normal",
+   "baseline_days": 6,
+   "tests": 4000,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "capped",
+   "condition": "normal",
+   "baseline_days": 7,
+   "tests": 4000,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "capped",
+   "condition": "normal",
+   "baseline_days": 8,
+   "tests": 1800,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "capped",
+   "condition": "normal",
+   "baseline_days": 9,
+   "tests": 200,
+   "alarm_rate": 0.0
+  },
+  {
+   "method": "capped",
+   "condition": "hesitant",
+   "baseline_days": 2,
+   "tests": 4000,
+   "alarm_rate": 0.8955
+  },
+  {
+   "method": "capped",
+   "condition": "hesitant",
+   "baseline_days": 3,
+   "tests": 4000,
+   "alarm_rate": 0.8918
+  },
+  {
+   "method": "capped",
+   "condition": "hesitant",
+   "baseline_days": 4,
+   "tests": 4000,
+   "alarm_rate": 0.8915
+  },
+  {
+   "method": "capped",
+   "condition": "hesitant",
+   "baseline_days": 5,
+   "tests": 4000,
+   "alarm_rate": 0.8918
+  },
+  {
+   "method": "capped",
+   "condition": "hesitant",
+   "baseline_days": 6,
+   "tests": 4000,
+   "alarm_rate": 0.8938
+  },
+  {
+   "method": "capped",
+   "condition": "hesitant",
+   "baseline_days": 7,
+   "tests": 4000,
+   "alarm_rate": 0.8922
+  },
+  {
+   "method": "capped",
+   "condition": "hesitant",
+   "baseline_days": 8,
+   "tests": 1800,
+   "alarm_rate": 0.8944
+  },
+  {
+   "method": "capped",
+   "condition": "hesitant",
+   "baseline_days": 9,
+   "tests": 200,
+   "alarm_rate": 0.895
+  },
+  {
+   "method": "capped",
+   "condition": "slow_tremor",
+   "baseline_days": 2,
+   "tests": 4000,
+   "alarm_rate": 0.0203
+  },
+  {
+   "method": "capped",
+   "condition": "slow_tremor",
+   "baseline_days": 3,
+   "tests": 4000,
+   "alarm_rate": 0.02
+  },
+  {
+   "method": "capped",
+   "condition": "slow_tremor",
+   "baseline_days": 4,
+   "tests": 4000,
+   "alarm_rate": 0.02
+  },
+  {
+   "method": "capped",
+   "condition": "slow_tremor",
+   "baseline_days": 5,
+   "tests": 4000,
+   "alarm_rate": 0.0203
+  },
+  {
+   "method": "capped",
+   "condition": "slow_tremor",
+   "baseline_days": 6,
+   "tests": 4000,
+   "alarm_rate": 0.02
+  },
+  {
+   "method": "capped",
+   "condition": "slow_tremor",
+   "baseline_days": 7,
+   "tests": 4000,
+   "alarm_rate": 0.02
+  },
+  {
+   "method": "capped",
+   "condition": "slow_tremor",
+   "baseline_days": 8,
+   "tests": 1800,
+   "alarm_rate": 0.02
+  },
+  {
+   "method": "capped",
+   "condition": "slow_tremor",
+   "baseline_days": 9,
+   "tests": 200,
+   "alarm_rate": 0.02
+  },
+  {
+   "method": "refit",
+   "condition": "normal",
+   "baseline_days": 2,
+   "tests": 4000,
+   "alarm_rate": 0.0542
+  },
+  {
+   "method": "refit",
+   "condition": "normal",
+   "baseline_days": 3,
+   "tests": 4000,
+   "alarm_rate": 0.0415
+  },
+  {
+   "method": "refit",
+   "condition": "normal",
+   "baseline_days": 4,
+   "tests": 4000,
+   "alarm_rate": 0.0398
+  },
+  {
+   "method": "refit",
+   "condition": "normal",
+   "baseline_days": 5,
+   "tests": 4000,
+   "alarm_rate": 0.035
+  },
+  {
+   "method": "refit",
+   "condition": "normal",
+   "baseline_days": 6,
+   "tests": 4000,
+   "alarm_rate": 0.031
+  },
+  {
+   "method": "refit",
+   "condition": "normal",
+   "baseline_days": 7,
+   "tests": 4000,
+   "alarm_rate": 0.0282
+  },
+  {
+   "method": "refit",
+   "condition": "normal",
+   "baseline_days": 8,
+   "tests": 1800,
+   "alarm_rate": 0.025
+  },
+  {
+   "method": "refit",
+   "condition": "normal",
+   "baseline_days": 9,
+   "tests": 200,
+   "alarm_rate": 0.025
+  },
+  {
+   "method": "refit",
+   "condition": "hesitant",
+   "baseline_days": 2,
+   "tests": 4000,
+   "alarm_rate": 0.9998
+  },
+  {
+   "method": "refit",
+   "condition": "hesitant",
+   "baseline_days": 3,
+   "tests": 4000,
+   "alarm_rate": 1.0
+  },
+  {
+   "method": "refit",
+   "condition": "hesitant",
+   "baseline_days": 4,
+   "tests": 4000,
+   "alarm_rate": 1.0
+  },
+  {
+   "method": "refit",
+   "condition": "hesitant",
+   "baseline_days": 5,
+   "tests": 4000,
+   "alarm_rate": 1.0
+  },
+  {
+   "method": "refit",
+   "condition": "hesitant",
+   "baseline_days": 6,
+   "tests": 4000,
+   "alarm_rate": 1.0
+  },
+  {
+   "method": "refit",
+   "condition": "hesitant",
+   "baseline_days": 7,
+   "tests": 4000,
+   "alarm_rate": 1.0
+  },
+  {
+   "method": "refit",
+   "condition": "hesitant",
+   "baseline_days": 8,
+   "tests": 1800,
+   "alarm_rate": 1.0
+  },
+  {
+   "method": "refit",
+   "condition": "hesitant",
+   "baseline_days": 9,
+   "tests": 200,
+   "alarm_rate": 1.0
+  },
+  {
+   "method": "refit",
+   "condition": "slow_tremor",
+   "baseline_days": 2,
+   "tests": 4000,
+   "alarm_rate": 0.364
+  },
+  {
+   "method": "refit",
+   "condition": "slow_tremor",
+   "baseline_days": 3,
+   "tests": 4000,
+   "alarm_rate": 0.352
+  },
+  {
+   "method": "refit",
+   "condition": "slow_tremor",
+   "baseline_days": 4,
+   "tests": 4000,
+   "alarm_rate": 0.3458
+  },
+  {
+   "method": "refit",
+   "condition": "slow_tremor",
+   "baseline_days": 5,
+   "tests": 4000,
+   "alarm_rate": 0.3412
+  },
+  {
+   "method": "refit",
+   "condition": "slow_tremor",
+   "baseline_days": 6,
+   "tests": 4000,
+   "alarm_rate": 0.3382
+  },
+  {
+   "method": "refit",
+   "condition": "slow_tremor",
+   "baseline_days": 7,
+   "tests": 4000,
+   "alarm_rate": 0.3368
+  },
+  {
+   "method": "refit",
+   "condition": "slow_tremor",
+   "baseline_days": 8,
+   "tests": 1800,
+   "alarm_rate": 0.34
+  },
+  {
+   "method": "refit",
+   "condition": "slow_tremor",
+   "baseline_days": 9,
+   "tests": 200,
+   "alarm_rate": 0.345
+  }
+ ],
+ "app_false_alarm_top_feature": {
+  "words_per_min": 27
+ },
+ "pooled_spread_all": {
+  "latency_s": 0.2058780605200882,
+  "words_per_min": 21.538481198436347,
+  "pauses_per_min": 0.0,
+  "mean_pause_s": 0.0,
+  "filler_rate": 0.0,
+  "repeat_rate": 0.0
+ },
+ "app_std_floor": {
+  "latency_s": 0.6,
+  "words_per_min": 12.0,
+  "pauses_per_min": 3.0,
+  "mean_pause_s": 0.25,
+  "filler_rate": 0.03,
+  "repeat_rate": 0.02
+ },
+ "refit_weights_last_fold": {
+  "latency_s": 2.145,
+  "words_per_min": 0.941,
+  "pauses_per_min": 0.397,
+  "mean_pause_s": 0.411,
+  "filler_rate": 0.0,
+  "repeat_rate": 0.001
+ }
+}
