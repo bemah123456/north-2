@@ -25,6 +25,6 @@ Add project-specific setup instructions here when the app's stack and tooling ar
 
 ## Working together
 
-Each person should use their own clone and create a branch for their work. Push the branch to GitHub and open a pull request to merge it into `main`. Pull the latest `main` before starting new work. GitHub is the shared source of truth; Claude Code works on the files in the local clone.
+Each person should use their own clone and create a branch for their work. Push the branch to GitHub and open a pull request to merge it into `main`. Pull the latest `main` before starting new work. Every pull request runs the server tests and the app's type check (`.github/workflows/checks.yml`); merge once both are green. GitHub is the shared source of truth; Claude Code works on the files in the local clone.
 
 To give teammates access, add them as collaborators in the repository settings.
