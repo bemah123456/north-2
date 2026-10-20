@@ -241,6 +241,30 @@ means caught this kind of change, not delirium. None of this is applied
 to the app: the capped scoring is a candidate to try once real check-ins
 exist.
 
+**How much the capping depends on its settings.**
+[scripts/cap_sensitivity.py](scripts/cap_sensitivity.py) tried every mix
+of the cap on "um" and repeated-word scores (1 to 3 spreads, or none) and
+the speaking-rate floor (12 to 25 words a minute), with 5 normal days:
+
+| Cap on one-off words | Synthetic healthy alarms | Synthetic slowed caught | Real hesitant caught |
+|---|---|---|---|
+| None (current app) | 6.4% | 12.1% | 91.0% |
+| 3 spreads | 6.4% | 12.1% | 91.0% |
+| 2 spreads | 5.1% | 11.5% | 91.0% |
+| 1.5 spreads | 2.9% | 8.1% | 91.0% |
+| 1 spread | 1.9% | 5.9% | 91.0% |
+
+(Speaking-rate floor 16 words a minute in this table.) The cap does the
+work; the rate floor barely changes healthy alarms and costs a few
+hesitant catches as it rises (92.6% at 12, 87.0% at 25), so 16 is enough.
+Choosing the settings on half the synthetic voices and checking on the
+other half kept the gain both ways round (7.8% to 3.8%, and 5.2% to
+0.1%), so it isn't tuned to particular voices. The catch: part of what the
+current app "caught" on slowed synthetic voices was also one-off words,
+and a real rise in "um"s on a bad day would no longer score 4 points on
+its own. The real recordings have almost no "um"s, so they can't test
+that; the cap needs checking on real check-ins before it goes in the app.
+
 ## The transcript fixes
 
 In [scripts/robust.py](scripts/robust.py). Each comes from a mistake seen
