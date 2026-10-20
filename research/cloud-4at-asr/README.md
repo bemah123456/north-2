@@ -125,6 +125,44 @@ recordings first: the PC's Common Voice clips would show how often it
 fires on real microphones. Numbers per model are in
 `results/levels.json`.
 
+## Does the room trip the voice-change alarm?
+
+The app can also score 4AT part 4 ("acute change") from the voice: it
+compares answer delay, speaking rate, pauses, "um"s and repeats with the
+person's own normal days, and a change probability of 0.7 or more scores
+4 points, which is "call their doctor today" on its own.
+[scripts/voice_change.py](scripts/voice_change.py) gives each of 12 voices
+5 quiet-room days, uses 4 as the baseline and tests the fifth (60 tests per
+condition, word timestamps from Parakeet).
+
+| Test day | Voice alone scored 4 points | Mean change probability | ... with the quiet-room check |
+|---|---|---|---|
+| Quiet, same voice | 10% | 0.15 | 10% |
+| Slower, with a tremor (a real change) | 15% | 0.22 | 15% |
+| TV -20 dB | 32% | 0.42 | 0% |
+| TV -10 dB | 45% | 0.58 | 0% |
+
+Three findings:
+
+1. **A TV alone makes healthy people look changed.** The background speech
+   fills the gaps, so the timestamps show "longer pauses than usual" and
+   "pausing more than usual" (all 27 TV -10 dB alarms gave one of those).
+   The quiet-room check above catches every one of these check-ins.
+2. **A healthy person on an ordinary day already alarms 10% of the time**
+   from 4 baseline days. With such a short baseline the spread is
+   underestimated, so normal day-to-day variation reads as change. The app
+   should wait for more baseline days (or use a wider floor on the spread)
+   before the voice alone can score 4 points.
+3. **The slowed, shaky voice was barely told apart from a normal day**
+   (15% against 10%). Part of that is probably the synthetic slowdown, which stretches
+   the whole clip evenly, so pauses and answer delay grow little relative
+   to each other. It still means the voice alarm should not be trusted to
+   catch change until it has been checked on real recordings.
+
+The change model (`model.json` in the app) was itself trained on synthetic
+data, so these numbers say more about the setup than about real people.
+Raw features per voice and day are in `results/voice_change.json`.
+
 ## The transcript fixes
 
 In [scripts/robust.py](scripts/robust.py). Each comes from a mistake seen
@@ -182,7 +220,8 @@ study measured.
   the TV levels), the quiet-room check (`noise_check.py`,
   `analyze_levels.py`), run a model
   (`run_asr.py` for ONNX, `run_hf.py` for a Hugging Face folder such as the
-  PC's fine-tuned model), score (`analyze.py`), fixes (`robust.py`).
+  PC's fine-tuned model), score (`analyze.py`), fixes (`robust.py`), the voice-change
+  test (`voice_change.py`).
 - `results/summary.json`: every number above, per model, condition and scorer.
 - `results/errors.jsonl`: every healthy answer marked wrong and impaired
   answer marked right, with what was said and what the model heard.
