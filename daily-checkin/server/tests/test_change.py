@@ -147,7 +147,7 @@ def test_small_changes_without_a_wrong_answer_say_keep_an_eye():
     assert r["parts"] == {"alertness": 0, "amt4": 0, "attention": 0, "acute_change": 0}
     assert r["change"]["level"] == "some"
     assert r["band"] == "possible_impairment"
-    assert "small changes from their usual in more than one place" in r["reasons"]
+    assert "some change from their usual, taking everything together" in r["reasons"]
 
 
 def test_usual_day_scores_low():

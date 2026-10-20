@@ -35,6 +35,9 @@ await page.getByRole('button', { name: 'This is their phone: start check-ins' })
 cap('On Dad\'s phone there is one big button. No menus, no typing.');
 await wait(5000);
 await page.getByRole('button', { name: 'Start my check-in' }).click();
+// Typed answers can't hear the digit span, so read its numbers from the plan.
+const personId = await page.evaluate(() => JSON.parse(localStorage.getItem('checkin.setup')).personId);
+const plan = await (await fetch(`http://localhost:8000/people/${personId}/today`)).json();
 cap('The app reads each question aloud and records the spoken answer. For this video the answers are typed.');
 const answerFor = (q) => {
   if (/how old|age/i.test(q)) return "I'm seventy six";
@@ -54,8 +57,9 @@ const captionsFor = [
   null,
   'An attention task: months backwards, or a rotating version like counting down.',
 ];
-for (let i = 0; i < 6; i++) {
-  await page.getByText(`Question ${i + 1} of 6`).waitFor();
+const n = plan.exercises.length;
+for (let i = 0; i < n; i++) {
+  await page.getByText(`Question ${i + 1} of ${n}`).waitFor();
   const input = page.locator('input');
   await input.waitFor();
   if (captionsFor[i]) cap(captionsFor[i]);
@@ -63,7 +67,9 @@ for (let i = 0; i < 6; i++) {
   const text = await page.locator('body').innerText();
   const line = text.split('\n').find(l => l.endsWith('?') || l.endsWith('.')) || '';
   await input.click();
-  await input.pressSequentially(answerFor(line), { delay: 45 });
+  const ex = plan.exercises[i];
+  const answer = ex.kind === 'digit_span' ? ex.expect.split('').join(' ') : answerFor(line);
+  await input.pressSequentially(answer, { delay: 45 });
   await wait(900);
   await page.getByRole('button', { name: 'Next' }).click();
 }

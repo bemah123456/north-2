@@ -22,7 +22,7 @@ HEADLINES = {
 
 FAMILY_REASON = "family says they seem different today"
 CHANGE_REASONS = {
-    "some": "small changes from their usual in more than one place",
+    "some": "some change from their usual, taking everything together",
     "big": "several changes from their usual at once",
 }
 
