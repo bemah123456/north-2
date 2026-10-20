@@ -1,3 +1,5 @@
+import csv
+import io
 import json
 
 import pytest
@@ -140,6 +142,11 @@ def test_check_answer_asks_again_once_and_reuses_the_transcript(client, monkeypa
                     files={"audio_year": ("a.m4a", b"year", "audio/m4a")})
     assert r.status_code == 200, r.text
     assert calls.count(b"year") == 1  # transcribed once, during the check
+
+    sheet = list(csv.DictReader(io.StringIO(client.get("/export/hand-scoring.csv").text)))
+    year = next(row for row in sheet if row["exercise_id"] == "year")
+    assert year["recording"].endswith("/audio/year") and open(year["file"], "rb").read() == b"year"
+    assert next(row for row in sheet if row["exercise_id"] == "age")["file"] == ""  # typed
 
 
 def test_check_answer_needs_speech_to_text(client, monkeypatch):
