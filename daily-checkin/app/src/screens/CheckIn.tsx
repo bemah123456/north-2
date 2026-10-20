@@ -2,7 +2,8 @@
 // in large type, and listens. It moves on by itself after a few seconds of
 // quiet, or when they tap "I'm done". Before the first question it listens
 // to the room for a few seconds and asks them to turn the TV down if it's
-// loud, because background talk makes healthy answers get misheard.
+// loud, because background talk makes healthy answers get misheard. If the
+// server can't make out an answer, the question is asked once more.
 
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
@@ -27,7 +28,7 @@ const SPEECH_RATE = 0.85;
 const NOISY_ROOM_DB = -45;
 const ROOM_CHECK_MS = 3000;
 
-type Phase = 'loading' | 'roomcheck' | 'noisy' | 'speaking' | 'listening' | 'typing' | 'sending' | 'done' | 'error';
+type Phase = 'loading' | 'roomcheck' | 'noisy' | 'checking' | 'speaking' | 'listening' | 'typing' | 'sending' | 'done' | 'error';
 
 export default function CheckIn({ personId, typedMode, onFinished }: {
   personId: string;
@@ -53,6 +54,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
   const timeLimit = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finishing = useRef(false);
   const askId = useRef(0);
+  const askedAgain = useRef(new Set<string>());
 
   useEffect(() => {
     (async () => {
@@ -133,7 +135,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
     return () => clearInterval(timer);
   }, [phase]);
 
-  function ask(ex: Exercise) {
+  function ask(ex: Exercise, preface = '') {
     setTyped('');
     setPhase('speaking');
     const myAsk = ++askId.current;
@@ -144,9 +146,10 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
       if (useTyping) setPhase('typing');
       else startListening(ex);
     };
-    Speech.speak(ex.prompt, { rate: SPEECH_RATE, onDone: begin, onStopped: () => {}, onError: begin });
+    const said = preface ? `${preface} ${ex.prompt}` : ex.prompt;
+    Speech.speak(said, { rate: SPEECH_RATE, onDone: begin, onStopped: () => {}, onError: begin });
     // Some browsers never report the end of speech.
-    setTimeout(begin, 1500 + ex.prompt.split(' ').length * 450);
+    setTimeout(begin, 1500 + said.split(' ').length * 450);
   }
 
   async function startListening(ex: Exercise) {
@@ -167,7 +170,17 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
     finishing.current = true;
     if (timeLimit.current) clearTimeout(timeLimit.current);
     await recorder.stop();
-    answers.current.push({ exerciseId: exercises[index].id, audioUri: recorder.uri ?? undefined });
+    const ex = exercises[index];
+    const uri = recorder.uri ?? undefined;
+    if (uri && !askedAgain.current.has(ex.id)) {
+      setPhase('checking');
+      if (await api.shouldAskAgain(personId, ex.id, uri)) {
+        askedAgain.current.add(ex.id);
+        ask(ex, "Sorry, I didn't quite catch that. Let's try once more.");
+        return;
+      }
+    }
+    answers.current.push({ exerciseId: ex.id, audioUri: uri });
     next();
   }
 
@@ -220,6 +233,16 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
         <Body>Could you turn down the TV or radio, or go somewhere quieter? Background voices make it hard to hear your answers.</Body>
         <BigButton label="I've made it quieter" onPress={checkRoom} />
         <BigButton label="Start anyway" kind="secondary" onPress={() => setStarted(true)} />
+      </Screen>
+    );
+  }
+  if (phase === 'checking') {
+    return (
+      <Screen>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Body>One moment…</Body>
+        </View>
       </Screen>
     );
   }

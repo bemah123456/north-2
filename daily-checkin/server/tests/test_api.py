@@ -108,3 +108,45 @@ def test_token(client, monkeypatch):
 def test_health(client):
     h = client.get("/health").json()
     assert h["model"]["synthetic"] is True
+
+
+def test_check_answer_asks_again_once_and_reuses_the_transcript(client, monkeypatch):
+    heard = {"age": "I made it too", "year": "twenty twenty six"}
+    calls = []
+
+    def fake_transcribe(data, content_type, expect=None):
+        calls.append(data)
+        return heard[data.decode()], []
+
+    monkeypatch.setattr(api.transcribe, "transcribe", fake_transcribe)
+    monkeypatch.setattr(api.transcribe, "clip_check", lambda data: {"heard_speech": True, "noisy": False})
+    monkeypatch.setattr(api, "_heard", {})
+    p = person(client)
+    plan = client.get(f"/people/{p['id']}/today", params={"date_override": "2026-10-19"}).json()
+    ids = {ex["id"]: ex["id"] for ex in plan["exercises"]}
+
+    def check(ex_id, clip):
+        return client.post(f"/people/{p['id']}/answers/check",
+                           data={"exercise_id": ex_id, "date_override": "2026-10-19"},
+                           files={"audio": ("a.m4a", clip, "audio/m4a")}).json()
+
+    assert check(ids["age"], b"age") == {"ask_again": True, "reason": "misheard"}
+    assert check(ids["year"], b"year") == {"ask_again": False, "reason": None}
+
+    answers = typed(plan)
+    r = client.post(f"/people/{p['id']}/checkins",
+                    data={"answers": json.dumps([a for a in json.loads(answers) if a["exercise_id"] != "year"]),
+                          "date_override": "2026-10-19"},
+                    files={"audio_year": ("a.m4a", b"year", "audio/m4a")})
+    assert r.status_code == 200, r.text
+    assert calls.count(b"year") == 1  # transcribed once, during the check
+
+
+def test_check_answer_needs_speech_to_text(client, monkeypatch):
+    monkeypatch.delenv("STT_PROVIDER", raising=False)
+    monkeypatch.setattr(api, "_heard", {})
+    p = person(client)
+    r = client.post(f"/people/{p['id']}/answers/check",
+                    data={"exercise_id": "age", "date_override": "2026-10-19"},
+                    files={"audio": ("a.m4a", b"x", "audio/m4a")})
+    assert r.status_code == 503

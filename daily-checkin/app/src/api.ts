@@ -55,6 +55,18 @@ export type Alert = { date: string; kind: string; sent_at: string; delivered: nu
 // One answer: a recording (phone) or typed text (web demo, or no mic).
 export type Answer = { exerciseId: string; audioUri?: string; transcript?: string };
 
+function appendAudio(form: FormData, field: string, uri: string, name: string) {
+  return (async () => {
+    if (Platform.OS === 'web') {
+      const blob = await (await fetch(uri)).blob();
+      form.append(field, blob, `${name}.webm`);
+    } else {
+      // React Native's FormData takes a file reference object.
+      form.append(field, { uri, name: `${name}.m4a`, type: 'audio/m4a' } as unknown as Blob);
+    }
+  })();
+}
+
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
   if (TOKEN) headers.Authorization = `Bearer ${TOKEN}`;
@@ -95,15 +107,23 @@ export const api = {
     const typed = answers.filter((a) => a.transcript !== undefined && !a.audioUri);
     form.append('answers', JSON.stringify(typed.map((a) => ({ exercise_id: a.exerciseId, transcript: a.transcript }))));
     for (const a of answers) {
-      if (!a.audioUri) continue;
-      if (Platform.OS === 'web') {
-        const blob = await (await fetch(a.audioUri)).blob();
-        form.append(`audio_${a.exerciseId}`, blob, `${a.exerciseId}.webm`);
-      } else {
-        // React Native's FormData takes a file reference object.
-        form.append(`audio_${a.exerciseId}`, { uri: a.audioUri, name: `${a.exerciseId}.m4a`, type: 'audio/m4a' } as unknown as Blob);
-      }
+      if (a.audioUri) await appendAudio(form, `audio_${a.exerciseId}`, a.audioUri, a.exerciseId);
     }
     return call<Result>(`/people/${id}/checkins`, { method: 'POST', body: form });
+  },
+
+  // Whether one recorded answer couldn't be made out, so the question
+  // should be asked again. Any failure or a slow server means "no".
+  async shouldAskAgain(id: string, exerciseId: string, audioUri: string, timeoutMs = 10000): Promise<boolean> {
+    const form = new FormData();
+    form.append('exercise_id', exerciseId);
+    await appendAudio(form, 'audio', audioUri, exerciseId);
+    const check = call<{ ask_again: boolean }>(`/people/${id}/answers/check`, { method: 'POST', body: form });
+    const late = new Promise<{ ask_again: boolean }>((resolve) => setTimeout(() => resolve({ ask_again: false }), timeoutMs));
+    try {
+      return (await Promise.race([check, late])).ask_again;
+    } catch {
+      return false;
+    }
   },
 };
