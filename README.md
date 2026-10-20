@@ -8,6 +8,7 @@ Shared project repository for North 2: a voice check-in that helps families catc
 - `research/delirium_speech_sources.md`: public clips, studies and datasets on how delirium sounds in speech.
 - `research/delirium_competitors.md`: existing delirium and speech-cognition tools and where they fall short.
 - `research/cloud-4at-asr/`: eight speech models compared on spoken 4AT answers, how often each makes a healthy person look impaired, and transcript fixes that halve those false alarms.
+- `research/outreach/delirium-data-outreach.md`: draft emails asking Northwell, Edinburgh and DementiaBank for access to real delirium and older-adult speech, with contacts and what each requires. Not sent.
 
 Some work also happens in the Claude project's shared files before it lands here. The copies in this repository are the ones to review and build on; new work from the project is brought in through pull requests.
 
