@@ -1,0 +1,58 @@
+[
+ {
+  "recordings": "Real, no TV known",
+  "rule": "flicker only",
+  "clips": 200,
+  "clips_flagged": 0.24,
+  "checkins_asked_tv_off": 0.1615
+ },
+ {
+  "recordings": "Real, no TV known",
+  "rule": "flicker and gap",
+  "clips": 200,
+  "clips_flagged": 0.095,
+  "checkins_asked_tv_off": 0.0173
+ },
+ {
+  "recordings": "Synthetic, quiet",
+  "rule": "flicker only",
+  "clips": 690,
+  "clips_flagged": 0.0971,
+  "checkins_asked_tv_off": 0.0357
+ },
+ {
+  "recordings": "Synthetic, quiet",
+  "rule": "flicker and gap",
+  "clips": 690,
+  "clips_flagged": 0.0406,
+  "checkins_asked_tv_off": 0.0026
+ },
+ {
+  "recordings": "Synthetic, TV -20 dB",
+  "rule": "flicker only",
+  "clips": 360,
+  "clips_flagged": 0.9667,
+  "checkins_asked_tv_off": 0.9997
+ },
+ {
+  "recordings": "Synthetic, TV -20 dB",
+  "rule": "flicker and gap",
+  "clips": 360,
+  "clips_flagged": 0.8972,
+  "checkins_asked_tv_off": 0.9922
+ },
+ {
+  "recordings": "Synthetic, TV -10 dB",
+  "rule": "flicker only",
+  "clips": 690,
+  "clips_flagged": 0.9942,
+  "checkins_asked_tv_off": 1.0
+ },
+ {
+  "recordings": "Synthetic, TV -10 dB",
+  "rule": "flicker and gap",
+  "clips": 690,
+  "clips_flagged": 0.9841,
+  "checkins_asked_tv_off": 1.0
+ }
+]

@@ -125,6 +125,26 @@ recordings first: the PC's Common Voice clips would show how often it
 fires on real microphones. Numbers per model are in
 `results/levels.json`.
 
+**On real microphones the first version fires too often.** On the PC's
+200 Common Voice clips from 20 speakers aged 60+ (their own devices, MP3
+compressed, no TV known), it flagged 24% of clips and would have asked
+16% of check-ins to turn the TV off. Compression and microphone noise
+flicker too. A second condition fixes most of that: the gaps must also
+be no more than 40 dB quieter than the speech, which a TV keeps them and
+a real quiet room does not
+([scripts/noise_check_real.py](scripts/noise_check_real.py)).
+
+| Check-ins asked to turn the TV off | Flicker only | Flicker and gap |
+|---|---|---|
+| Real recordings, no TV known | 16.2% | 1.7% |
+| Synthetic, quiet | 3.6% | 0.3% |
+| Synthetic, TV -20 dB | 100% | 99.2% |
+| Synthetic, TV -10 dB | 100% | 100% |
+
+The 40 dB line was picked on these same clips, so it needs checking on
+new recordings, and some of the real clips may really have had something
+playing in the background.
+
 ## Does the room trip the voice-change alarm?
 
 The app can also score 4AT part 4 ("acute change") from the voice: it
