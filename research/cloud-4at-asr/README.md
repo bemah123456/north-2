@@ -265,6 +265,25 @@ and a real rise in "um"s on a bad day would no longer score 4 points on
 its own. The real recordings have almost no "um"s, so they can't test
 that; the cap needs checking on real check-ins before it goes in the app.
 
+**The combined change score in PR #12.** PR #12 replaces "the voice alone
+scores 4 points" with evidence from several parts added up, where "a big
+change" needs two kinds of evidence. [scripts/combined_check.py](scripts/combined_check.py)
+runs it on both day sets with 5 normal days (answers from Whisper small
+with the fixes on the synthetic days; voice only on the real ones):
+
+| Days | Some change | Big change | Voice alone, current app |
+|---|---|---|---|
+| Synthetic healthy | 2.6% | 0% | 3.4% |
+| Synthetic slowed + tremor | 5.5% | 0% | 7.2% |
+| Synthetic healthy, TV -20 dB | 6.6% | 0% | 35.0% |
+| Real healthy | 0% | 0% | 0% |
+| Real hesitant | 88.1% | 0% | 89.2% |
+
+No healthy day reached a big change, even with a TV on. A hesitant voice
+with every answer right stops at "some change", because the voice alone
+can't reach a big change by design; with two wrong answers or a failed
+backwards task as well, it would.
+
 ## The transcript fixes
 
 In [scripts/robust.py](scripts/robust.py). Each comes from a mistake seen
