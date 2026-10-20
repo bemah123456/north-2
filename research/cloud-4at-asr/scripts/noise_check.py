@@ -49,6 +49,29 @@ def background_flicker(x: np.ndarray, sr: int = 16000) -> float:
     return float(np.abs(np.diff(quiet)).mean()) if len(quiet) > 2 else 0.0
 
 
+def background_gap(x: np.ndarray, sr: int = 16000) -> float:
+    """dB between the loud frames (90th percentile) and the quiet ones
+    (20th). Someone else talking fills the gaps and makes this small; a
+    real quiet room, even one whose silence flickers from microphone or
+    compression noise, keeps it large."""
+    frame = int(FRAME_S * sr)
+    n = len(x) // frame
+    if n < 10:
+        return float("inf")
+    rms = np.sqrt((x[: n * frame].reshape(n, frame) ** 2).mean(axis=1))
+    db = 20 * np.log10(np.maximum(rms, 1e-4))
+    return float(np.percentile(db, 90) - np.percentile(db, 20))
+
+
+FLICKER_DB = 4.4
+GAP_DB = 40.0
+
+
+def background_speech(x: np.ndarray, sr: int = 16000) -> bool:
+    """True when the gaps between words probably hold another voice."""
+    return background_flicker(x, sr) > FLICKER_DB and background_gap(x, sr) < GAP_DB
+
+
 def main():
     audio, out = Path(sys.argv[1]), Path(sys.argv[2])
     snr = {}

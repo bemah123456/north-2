@@ -1,0 +1,80 @@
+[
+ {
+  "days": "Real",
+  "condition": "hesitant",
+  "tests": 4000,
+  "some_change": 0.8815,
+  "big_change": 0.0,
+  "old_voice_alarm": 0.8922,
+  "noisy": 0.0,
+  "parts_when_some": {
+   "voice": 3526
+  },
+  "parts_when_big": {}
+ },
+ {
+  "days": "Real",
+  "condition": "normal",
+  "tests": 4000,
+  "some_change": 0.0,
+  "big_change": 0.0,
+  "old_voice_alarm": 0.0,
+  "noisy": 0.0,
+  "parts_when_some": {},
+  "parts_when_big": {}
+ },
+ {
+  "days": "Real",
+  "condition": "slow_tremor",
+  "tests": 4000,
+  "some_change": 0.02,
+  "big_change": 0.0,
+  "old_voice_alarm": 0.02,
+  "noisy": 0.0,
+  "parts_when_some": {
+   "voice": 80
+  },
+  "parts_when_big": {}
+ },
+ {
+  "days": "Synthetic",
+  "condition": "normal",
+  "tests": 3840,
+  "some_change": 0.0263,
+  "big_change": 0.0,
+  "old_voice_alarm": 0.0344,
+  "noisy": 0.0,
+  "parts_when_some": {
+   "voice": 101
+  },
+  "parts_when_big": {}
+ },
+ {
+  "days": "Synthetic",
+  "condition": "slow_tremor",
+  "tests": 3840,
+  "some_change": 0.0552,
+  "big_change": 0.0,
+  "old_voice_alarm": 0.0719,
+  "noisy": 0.0,
+  "parts_when_some": {
+   "voice": 212,
+   "answers": 11
+  },
+  "parts_when_big": {}
+ },
+ {
+  "days": "Synthetic",
+  "condition": "tv20",
+  "tests": 3840,
+  "some_change": 0.0664,
+  "big_change": 0.0,
+  "old_voice_alarm": 0.3503,
+  "noisy": 0.9844,
+  "parts_when_some": {
+   "answers": 211,
+   "voice": 255
+  },
+  "parts_when_big": {}
+ }
+]
