@@ -97,6 +97,21 @@ def test_clip_check_spots_a_tv_but_not_a_fan(background, level_db, noisy):
     assert check == {"heard_speech": True, "noisy": noisy}
 
 
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="needs ffmpeg")
+def test_clip_check_ignores_faint_flicker_in_a_quiet_room():
+    # Real phone recordings flicker in their gaps from mic and compression
+    # noise, far below the speech. That alone shouldn't ask about a TV.
+    rng = np.random.default_rng(0)
+    t = np.arange(16000 * 4) / 16000
+    on = (np.sin(2 * np.pi * 3 * t) > 0.2) & (t % 1.2 < 0.8)
+    x = 0.3 * on * np.sin(2 * np.pi * 180 * t)
+    level = np.repeat(10 ** (rng.uniform(-80, -55, len(t) // 480 + 1) / 20), 480)[: len(t)]
+    x = x + rng.normal(size=len(t)) * level
+    assert transcribe.background_flicker(x) > transcribe.TV_FLICKER_DB
+    assert transcribe.background_gap(x) > transcribe.TV_GAP_DB
+    assert transcribe.clip_check(_wav(x)) == {"heard_speech": True, "noisy": False}
+
+
 def test_months_question_primes_local_whisper(monkeypatch):
     seen = []
 

@@ -111,10 +111,28 @@ def background_flicker(x, sr: int = SR) -> float:
     return float(np.abs(np.diff(quiet)).mean()) if len(quiet) > 2 else 0.0
 
 
-# Above this, the gaps probably hold someone else talking. It flagged 96% of
-# clips with a TV 20 dB below the speaker, no steady fan noise, and about
-# 5% of quiet clips.
+def background_gap(x, sr: int = SR) -> float:
+    """dB between the loud 30 ms frames (90th percentile) and the quiet ones
+    (20th). Another voice fills the gaps and makes this small; a quiet room
+    keeps it large even when its silence flickers from microphone or
+    compression noise."""
+    import numpy as np
+
+    frame = int(0.03 * sr)
+    n = len(x) // frame
+    if n < 10:
+        return float("inf")
+    rms = np.sqrt((x[: n * frame].reshape(n, frame) ** 2).mean(axis=1))
+    db = 20 * np.log10(np.maximum(rms, 1e-4))
+    return float(np.percentile(db, 90) - np.percentile(db, 20))
+
+
+# Flicker above 4.4 dB with gaps under 40 dB below the speech: someone else
+# is probably talking. Flicker alone asked 16% of real check-ins from older
+# speakers (no TV known) to turn the TV off; with the gap it's 1.7%, and it
+# still catches 99% of check-ins with a TV 20 dB below the speaker.
 TV_FLICKER_DB = 4.4
+TV_GAP_DB = 40.0
 
 
 def clip_check(audio: bytes) -> dict | None:
@@ -137,7 +155,7 @@ def clip_check(audio: bytes) -> dict | None:
     e = np.sqrt((x[: n * frame].reshape(n, frame) ** 2).mean(axis=1)) + 1e-6
     floor = np.percentile(e, 10)
     heard = bool(e.max() > 0.01 and e.max() / floor > (3 if floor > 0.003 else 10))
-    noisy = background_flicker(x) > TV_FLICKER_DB
+    noisy = background_flicker(x) > TV_FLICKER_DB and background_gap(x) < TV_GAP_DB
     return {"heard_speech": heard, "noisy": noisy}
 
 
