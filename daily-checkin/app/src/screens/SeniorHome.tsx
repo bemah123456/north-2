@@ -8,7 +8,7 @@ import { AppState, StyleSheet, Text, View } from 'react-native';
 
 import { api, Person, TodayPlan } from '../api';
 import { scheduleDailyReminder } from '../reminders';
-import { colors, space, type } from '../theme';
+import { colors, maxScale, space, type } from '../theme';
 import { Badge, BigButton, Body, QuietButton, Screen, Title } from '../ui';
 
 function niceTime(hhmm: string) {
@@ -74,7 +74,7 @@ export default function SeniorHome({ personId, onStart, onSignOut }: {
     main = (
       <View style={styles.centre}>
         <Badge mode="done" />
-        <Text style={styles.doneTitle}>All done for today</Text>
+        <Text style={styles.doneTitle} maxFontSizeMultiplier={maxScale.heading}>All done for today</Text>
         <Body center>Thank you!</Body>
         <Body center muted>
           {plan.session === 'morning' && plan.evening_at

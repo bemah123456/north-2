@@ -1,6 +1,7 @@
 // Large type and strong contrast for older eyes and shaky hands. Every text
-// colour here reads at 7:1 or better on the background (WCAG AAA), and no
-// status is shown by colour alone: each one also has a symbol and a word.
+// colour here reads at 7:1 or better on the background and on its own soft
+// tint (WCAG AAA), and no status is shown by colour alone: each one also has
+// a symbol and a word.
 export const colors = {
   bg: '#F7F3EC',
   card: '#FFFFFF',
@@ -11,13 +12,13 @@ export const colors = {
   primaryText: '#FFFFFF',
   primarySoft: '#E1EFEA',
   border: '#D9D1C4',
-  green: '#1E6B43',
+  green: '#185736',
   greenSoft: '#E3F2E8',
-  amber: '#8A4E00',
+  amber: '#734100',
   amberSoft: '#FCEFD9',
-  red: '#A3221B',
+  red: '#8F1D17',
   redSoft: '#FBE4E1',
-  grey: '#5A5A5A',
+  grey: '#4B4B4B',
   greySoft: '#ECEAE6',
 };
 
@@ -54,3 +55,7 @@ export const type = { giant: 44, huge: 36, big: 28, body: 22, small: 18 };
 export const space = { xs: 6, s: 12, m: 20, l: 28, xl: 40 };
 
 export const radius = { m: 16, l: 24, round: 999 };
+
+// Text still grows with the phone's own text-size setting, but headings and
+// buttons stop at 1.5x so a big setting can't push the main button off screen.
+export const maxScale = { heading: 1.5, button: 1.5, tight: 1.2 };

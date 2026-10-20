@@ -19,7 +19,7 @@ import {
 } from 'expo-audio';
 
 import { Answer, Exercise, Session, api } from '../api';
-import { colors, type } from '../theme';
+import { colors, maxScale, type } from '../theme';
 import { Badge, BigButton, Body, Field, Progress, Screen, Title } from '../ui';
 
 const SPEAKING_DB = -40; // louder than this counts as talking
@@ -295,20 +295,11 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
   if (phase === 'done') {
     const asking = !!checkinId && !rated;
     return (
-      <Screen footer={!asking && <BigButton label="Back to home" onPress={onFinished} />}>
-        <View style={styles.center}>
-          <Badge mode="done" />
-          <Title>All done. Thank you!</Title>
-          {asking ? (
-            <Body center>Was that easy or hard?</Body>
-          ) : (
-            <Body center>See you tomorrow.</Body>
-          )}
-        </View>
-        {asking && (
-          <View style={styles.ratings}>
-            {/* Three plain choices instead of a 1 to 5 scale, stored on the same scale. */}
-            {([['Easy', 5], ['OK', 3], ['Hard', 1]] as const).map(([label, n]) => (
+      <Screen
+        footer={
+          asking ? (
+            // Three plain choices instead of a 1 to 5 scale, stored on the same scale.
+            ([['Easy', 5], ['OK', 3], ['Hard', 1]] as const).map(([label, n]) => (
               <BigButton
                 key={label}
                 label={label}
@@ -318,9 +309,17 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
                   api.ease(checkinId, n).catch(() => {});
                 }}
               />
-            ))}
-          </View>
-        )}
+            ))
+          ) : (
+            <BigButton label="Back to home" onPress={onFinished} />
+          )
+        }
+      >
+        <View style={styles.center}>
+          <Badge mode="done" />
+          <Title>All done. Thank you!</Title>
+          <Body center>{asking ? 'Was that easy or hard?' : 'See you tomorrow.'}</Body>
+        </View>
       </Screen>
     );
   }
@@ -338,7 +337,6 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
   const listening = phase === 'listening';
   return (
     <Screen
-      scroll={phase === 'typing'}
       footer={
         <>
           {listening && <BigButton label="I'm finished" onPress={finishAnswer} />}
@@ -348,7 +346,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
       }
     >
       <Progress at={index + 1} of={exercises.length} />
-      <Text style={styles.prompt}>{ex.caption || ex.prompt}</Text>
+      <Text style={styles.prompt} maxFontSizeMultiplier={maxScale.heading}>{ex.caption || ex.prompt}</Text>
       {phase === 'speaking' && (
         <View style={styles.status} accessibilityLiveRegion="polite">
           <Badge mode="speaking" />
@@ -378,7 +376,6 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
 }
 
 const styles = StyleSheet.create({
-  ratings: { gap: 4, marginTop: 8 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
   wait: { fontSize: type.big, fontWeight: '700', color: colors.text, textAlign: 'center', marginTop: 24 },
   prompt: { fontSize: type.huge, lineHeight: 48, fontWeight: '700', color: colors.text, marginBottom: 16 },

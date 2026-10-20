@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useRef } from 'react';
 import { Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 
-import { colors, radius, space, statusColor, statusSoft, statusSymbol, type } from './theme';
+import { colors, maxScale, radius, space, statusColor, statusSoft, statusSymbol, type } from './theme';
 
 // One screen: content at the top, and the main action pinned to the bottom
 // where a thumb can reach it without scrolling.
@@ -16,7 +16,7 @@ export function Screen({ children, footer, scroll = true }: { children: ReactNod
 }
 
 export function Title({ children }: { children: ReactNode }) {
-  return <Text style={styles.title} accessibilityRole="header">{children}</Text>;
+  return <Text style={styles.title} accessibilityRole="header" maxFontSizeMultiplier={maxScale.heading}>{children}</Text>;
 }
 
 export function Body({ children, muted, center }: { children: ReactNode; muted?: boolean; center?: boolean }) {
@@ -54,8 +54,8 @@ export function BigButton({ label, hint, onPress, kind = 'primary', size = 'norm
       ]}
     >
       {/* Non-breaking hyphens keep "check-in" on one line at hero size. */}
-      <Text style={[styles.buttonText, size === 'hero' && { fontSize: 30 }, { color: fg }]}>{size === 'hero' ? label.replace(/-/g, '\u2011') : label}</Text>
-      {hint && <Text style={[styles.buttonHint, { color: fg }]}>{hint}</Text>}
+      <Text maxFontSizeMultiplier={maxScale.button} style={[styles.buttonText, size === 'hero' && { fontSize: 30 }, { color: fg }]}>{size === 'hero' ? label.replace(/-/g, '\u2011') : label}</Text>
+      {hint && <Text maxFontSizeMultiplier={maxScale.button} style={[styles.buttonHint, { color: fg }]}>{hint}</Text>}
     </Pressable>
   );
 }
@@ -81,10 +81,10 @@ export function Choice({ title, detail, onPress }: { title: string; detail: stri
       style={({ pressed }) => [styles.choice, pressed && { borderColor: colors.primary, backgroundColor: colors.primarySoft }]}
     >
       <View style={{ flex: 1 }}>
-        <Text style={styles.choiceTitle}>{title}</Text>
+        <Text style={styles.choiceTitle} maxFontSizeMultiplier={maxScale.heading}>{title}</Text>
         <Text style={styles.choiceDetail}>{detail}</Text>
       </View>
-      <Text style={styles.chevron}>›</Text>
+      <Text style={styles.chevron} maxFontSizeMultiplier={maxScale.tight}>›</Text>
     </Pressable>
   );
 }
@@ -125,7 +125,7 @@ export function Pick<T extends string>({ label, options, value, onChange }: {
               onPress={() => onChange(o.value)}
               style={[styles.pick, on && styles.pickOn]}
             >
-              <Text style={[styles.pickText, on && { color: colors.primaryText }]}>{o.label}</Text>
+              <Text maxFontSizeMultiplier={maxScale.button} style={[styles.pickText, on && { color: colors.primaryText }]}>{o.label}</Text>
             </Pressable>
           );
         })}
@@ -150,7 +150,7 @@ export function StatusIcon({ status, size = 44 }: { status: string; size?: numbe
       importantForAccessibility="no"
       style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: statusColor[status], alignItems: 'center', justifyContent: 'center' }}
     >
-      <Text style={{ color: '#FFFFFF', fontSize: size * 0.55, fontWeight: '800', lineHeight: size * 0.7 }}>{statusSymbol[status]}</Text>
+      <Text maxFontSizeMultiplier={1} style={{ color: '#FFFFFF', fontSize: size * 0.55, fontWeight: '800', lineHeight: size * 0.7 }}>{statusSymbol[status]}</Text>
     </View>
   );
 }
@@ -203,7 +203,7 @@ export function Badge({ mode, active = true }: { mode: 'done' | 'listening' | 's
         />
       )}
       <View style={[styles.badge, { backgroundColor: mode === 'done' ? colors.green : color }]}>
-        <Text style={styles.badgeText}>{symbol}</Text>
+        <Text style={styles.badgeText} maxFontSizeMultiplier={1}>{symbol}</Text>
       </View>
     </View>
   );

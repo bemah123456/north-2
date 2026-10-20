@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { api, Person, server } from '../api';
-import { colors, radius, space, type } from '../theme';
+import { colors, maxScale, radius, space, type } from '../theme';
 import { BigButton, Body, Card, Choice, Field, Pick, QuietButton, Screen, Section, Title } from '../ui';
 
 const TIMES = [
@@ -139,7 +139,7 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
         <Body>On {created.name}'s phone, open this app, tap "My family gave me a code" and type:</Body>
         <View style={styles.codeBox}>
           {/* In groups of four so it's easy to read out and type. */}
-          <Text selectable style={styles.code} accessibilityLabel={`Code: ${created.id.split('').join(' ')}`}>
+          <Text selectable style={styles.code} maxFontSizeMultiplier={maxScale.tight} accessibilityLabel={`Code: ${created.id.split('').join(' ')}`}>
             {created.id.match(/.{1,4}/g)?.join(' ')}
           </Text>
         </View>

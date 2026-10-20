@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Alert, api, DayRow, Person, Result } from '../api';
-import { colors, statusColor, statusSoft, type } from '../theme';
+import { colors, maxScale, statusColor, statusSoft, type } from '../theme';
 import { BigButton, Body, Card, QuietButton, Screen, Section, StatusIcon, StatusPill, Title } from '../ui';
 
 function niceDate(iso: string) {
@@ -100,7 +100,7 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
           {week.map((row) => (
             <View key={row.date} style={styles.weekDay}>
               <StatusIcon status={row.status} size={36} />
-              <Text style={styles.weekLabel}>{new Date(`${row.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' })}</Text>
+              <Text style={styles.weekLabel} maxFontSizeMultiplier={maxScale.tight}>{new Date(`${row.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' })}</Text>
             </View>
           ))}
         </View>
