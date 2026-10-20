@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 
 from . import store
-from .exercises import build_checkin
+from .exercises import NUMBER_WORDS, build_checkin
 from .features import Word, checkin_features
 from .missed import local_now
 from .scoring import score_checkin
@@ -32,6 +32,7 @@ CONFUSED = {
     "months_backwards": "December November um October uh",
     "days_backwards": "Sunday um Saturday Friday",
     "countdown_20": "twenty nineteen uh eighteen",
+    "digit_span": "um nine uh",
 }
 
 
@@ -49,7 +50,8 @@ def given_for(pid: str, day: date, texts: dict, **voice) -> dict:
     out = {}
     for ex in build_checkin(pid, day):
         key = ex.kind if ex.part == "attention" else ex.id
-        text = texts.get(key, GOOD[key])
+        right = " ".join(NUMBER_WORDS[int(d)] for d in ex.expect) if ex.kind == "digit_span" else GOOD[key]
+        text = texts.get(key, right)
         out[ex.id] = {"transcript": text, "words": spoken(text, **voice)}
     return out
 
@@ -62,7 +64,7 @@ def main() -> None:
         "name": "Grandma Rose", "birth_date": "1944-03-14", "timezone": tz, "checkin_time": "09:00",
         "place_keywords": ["home", "Springfield"], "family_name": "Sam",
     }, start)
-    history = []
+    history, past = [], []
     for i in range(7):
         day = start + timedelta(days=i)
         if i == 5:
@@ -74,12 +76,14 @@ def main() -> None:
             wpm=72 if confused else 128 + 5 * (i % 3),
             pause_every=2 if confused else 8, pause=2.0 if confused else 0.8,
         )
-        result = score_checkin(p, day, build_checkin(p["id"], day), given, history)
+        result = score_checkin(p, day, build_checkin(p["id"], day), given, history, past=past,
+                               routine={"missed_yesterday": i == 6})
         feats = checkin_features({k: v["words"] for k, v in given.items()})
         store.add_checkin(p["id"], day, datetime.now(timezone.utc).isoformat(), 9.2 + 0.1 * i,
                           result, feats, None)
         if result["band"] != "possible_delirium":
             history.append(feats)
+            past.append(result["measures"])
         print(day, result["headline"], "|", "; ".join(result["reasons"]) or "-")
     print(f"\nDemo person id: {p['id']}  (database: {store.DB_PATH})")
 

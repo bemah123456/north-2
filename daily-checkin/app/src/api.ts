@@ -13,6 +13,17 @@ export type Exercise = {
   kind: string;
   prompt: string;
   listen_seconds: number;
+  caption?: string; // shown instead of the prompt when the prompt gives the answer away
+};
+
+export type Session = 'morning' | 'evening';
+
+export type TodayPlan = {
+  date: string;
+  session: Session;
+  evening_at: string | null; // the evening check-in's time, when the family turned it on
+  already_done: boolean;
+  exercises: Exercise[];
 };
 
 export type Person = {
@@ -24,6 +35,16 @@ export type Person = {
   place_keywords: string[];
   family_name: string | null;
   family_phone: string | null;
+  evening_checkin: boolean;
+  evening_time: string;
+};
+
+export type Change = {
+  score: number; // 0 to 100: how far today is from their usual, all measures together
+  level: 'usual' | 'some' | 'big';
+  label: string;
+  evidence: Record<string, number>;
+  baseline_days: number;
 };
 
 export type Band = 'unlikely' | 'possible_impairment' | 'possible_delirium';
@@ -38,6 +59,9 @@ export type Result = {
   parts: Record<string, number>;
   needs_review: number;
   voice: { measured: boolean; baseline_days: number; change_probability: number | null };
+  change?: Change;
+  drowsiness_signs?: string[];
+  evening?: { checkin_id: string; fluctuation: 'none' | 'watch' | 'scored'; reasons: string[] };
   items: { exercise_id: string; prompt: string; transcript: string; correct?: boolean | null; correct_items?: number; out_of?: number | null; misheard?: boolean; one_month_dropped?: boolean }[];
   disclaimer: string;
 };
@@ -85,12 +109,12 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  createPerson: (p: Omit<Person, 'id' | 'family_name'> & { family_name?: string }) =>
+  createPerson: (p: Omit<Person, 'id' | 'family_name' | 'evening_checkin' | 'evening_time'> & { family_name?: string }) =>
     call<Person>('/people', { method: 'POST', body: JSON.stringify(p) }),
   getPerson: (id: string) => call<Person>(`/people/${id}`),
   updatePerson: (id: string, changes: Partial<Person> & { senior_push_token?: string; family_push_token?: string }) =>
     call<Person>(`/people/${id}`, { method: 'PATCH', body: JSON.stringify(changes) }),
-  today: (id: string) => call<{ date: string; already_done: boolean; exercises: Exercise[] }>(`/people/${id}/today`),
+  today: (id: string) => call<TodayPlan>(`/people/${id}/today`),
   days: (id: string) => call<{ person: Person; days: DayRow[]; alerts: Alert[] }>(`/people/${id}/days`),
   checkin: (checkinId: string) => call<Result>(`/checkins/${checkinId}`),
   familyReport: (checkinId: string, different: boolean) =>
@@ -103,9 +127,10 @@ export const api = {
   alertFeedback: (id: string, date: string, kind: string, wasReal: boolean) =>
     call(`/people/${id}/alerts/feedback`, { method: 'POST', body: JSON.stringify({ date, kind, was_real: wasReal }) }),
 
-  async submit(id: string, answers: Answer[], durationS: number): Promise<Result> {
+  async submit(id: string, answers: Answer[], durationS: number, session: Session = 'morning'): Promise<Result> {
     const form = new FormData();
     form.append('duration_s', String(Math.round(durationS)));
+    form.append('session', session);
     const typed = answers.filter((a) => a.transcript !== undefined && !a.audioUri);
     form.append('answers', JSON.stringify(typed.map((a) => ({ exercise_id: a.exerciseId, transcript: a.transcript }))));
     for (const a of answers) {
@@ -117,9 +142,10 @@ export const api = {
   // Whether one recorded answer couldn't be made out, so the question
   // should be asked again, and whether a TV seemed to be on behind it.
   // Any failure or a slow server means "no" to both.
-  async checkAnswer(id: string, exerciseId: string, audioUri: string, timeoutMs = 10000): Promise<AnswerCheck> {
+  async checkAnswer(id: string, exerciseId: string, audioUri: string, session: Session = 'morning', timeoutMs = 10000): Promise<AnswerCheck> {
     const form = new FormData();
     form.append('exercise_id', exerciseId);
+    form.append('session', session);
     await appendAudio(form, 'audio', audioUri, exerciseId);
     const fine: AnswerCheck = { ask_again: false, noisy: false };
     const check = call<AnswerCheck>(`/people/${id}/answers/check`, { method: 'POST', body: form });

@@ -18,7 +18,7 @@ import {
   useAudioRecorderState,
 } from 'expo-audio';
 
-import { Answer, Exercise, api } from '../api';
+import { Answer, Exercise, Session, api } from '../api';
 import { colors, type } from '../theme';
 import { BigButton, Body, Field, Screen, Title } from '../ui';
 
@@ -38,6 +38,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
   onFinished: () => void;
 }) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [session, setSession] = useState<Session>('morning');
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>('loading');
   const [error, setError] = useState('');
@@ -74,6 +75,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
           if (!perm.granted) setUseTyping(true);
           else await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
         }
+        setSession(plan.session);
         setExercises(plan.exercises);
         if (useTyping) setStarted(true);
       } catch (e) {
@@ -179,7 +181,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
     const uri = recorder.uri ?? undefined;
     if (uri && !askedAgain.current.has(ex.id)) {
       setPhase('checking');
-      const check = await api.checkAnswer(personId, ex.id, uri);
+      const check = await api.checkAnswer(personId, ex.id, uri, session);
       // One noisy clip can be a fluke; two in a row means something is on.
       const tvOn = check.noisy && lastWasNoisy.current && !tvWarned.current;
       lastWasNoisy.current = check.noisy;
@@ -233,7 +235,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
     }
     setPhase('sending');
     try {
-      const result = await api.submit(personId, answers.current, (Date.now() - startedAt.current) / 1000);
+      const result = await api.submit(personId, answers.current, (Date.now() - startedAt.current) / 1000, session);
       setCheckinId(result.checkin_id);
       setPhase('done');
       Speech.speak('All done. Thank you! How easy was that?', { rate: SPEECH_RATE });
@@ -336,7 +338,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
   return (
     <Screen scroll={false}>
       <Text style={styles.step}>Question {index + 1} of {exercises.length}</Text>
-      <Text style={styles.prompt}>{ex.prompt}</Text>
+      <Text style={styles.prompt}>{ex.caption || ex.prompt}</Text>
       {phase === 'listening' && (
         <View style={styles.listening} accessibilityLiveRegion="polite">
           <View style={[styles.dot, { opacity: (state.metering ?? -60) > SPEAKING_DB ? 1 : 0.35 }]} />

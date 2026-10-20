@@ -26,7 +26,9 @@ create table if not exists people (
   family_phone text,
   senior_push_token text,
   family_push_token text,
-  created_date text not null
+  created_date text not null,
+  evening_checkin integer not null default 0,
+  evening_time text not null default '19:00'
 );
 create table if not exists checkins (
   id text primary key,
@@ -39,7 +41,8 @@ create table if not exists checkins (
   family_says_different integer,
   duration_s real,
   ease integer,
-  unique (person_id, local_date)
+  session text not null default 'morning',
+  unique (person_id, local_date, session)
 );
 create table if not exists days_off (
   person_id text not null references people(id) on delete cascade,
@@ -67,7 +70,8 @@ create table if not exists hand_scores (
 """
 
 PERSON_FIELDS = ["name", "birth_date", "timezone", "checkin_time", "place_keywords",
-                 "family_name", "family_phone", "senior_push_token", "family_push_token"]
+                 "family_name", "family_phone", "senior_push_token", "family_push_token",
+                 "evening_checkin", "evening_time"]
 
 
 @contextmanager
@@ -86,10 +90,30 @@ def db():
 
 
 # Columns added after the first release; older databases get them here.
-_ADDED = {"checkins": ["duration_s real", "ease integer"], "alerts": ["was_real integer", "family_note text"]}
+_ADDED = {"checkins": ["duration_s real", "ease integer"], "alerts": ["was_real integer", "family_note text"],
+          "people": ["evening_checkin integer not null default 0", "evening_time text not null default '19:00'"]}
 
 
 def _migrate(conn) -> None:
+    # The evening check-in lets a day hold two check-ins, which needs a new
+    # unique key, and SQLite can only change that by copying the table.
+    have = {r[1] for r in conn.execute("pragma table_info(checkins)")}
+    if "session" not in have:
+        old = [c for c in ("id", "person_id", "local_date", "completed_at", "local_hour", "result", "features",
+                           "family_says_different", "duration_s", "ease") if c in have]
+        # Legacy mode keeps hand_scores pointing at "checkins", not the old
+        # copy, and with foreign keys off dropping the copy deletes nothing.
+        conn.commit()
+        conn.execute("pragma foreign_keys = off")
+        conn.execute("pragma legacy_alter_table = on")
+        conn.execute("alter table checkins rename to checkins_old")
+        conn.executescript(SCHEMA)
+        cols = ", ".join(old)
+        conn.execute(f"insert into checkins ({cols}) select {cols} from checkins_old")
+        conn.execute("drop table checkins_old")
+        conn.commit()
+        conn.execute("pragma legacy_alter_table = off")
+        conn.execute("pragma foreign_keys = on")
     for table, cols in _ADDED.items():
         have = {r[1] for r in conn.execute(f"pragma table_info({table})")}
         for col in cols:
@@ -102,6 +126,7 @@ def _person(row) -> dict | None:
         return None
     p = dict(row)
     p["place_keywords"] = json.loads(p["place_keywords"])
+    p["evening_checkin"] = bool(p.get("evening_checkin"))
     return p
 
 
@@ -110,12 +135,13 @@ def create_person(data: dict, today: date) -> dict:
     with db() as c:
         c.execute(
             "insert into people (id, name, birth_date, timezone, checkin_time, place_keywords,"
-            " family_name, family_phone, senior_push_token, family_push_token, created_date)"
-            " values (?,?,?,?,?,?,?,?,?,?,?)",
+            " family_name, family_phone, senior_push_token, family_push_token, created_date,"
+            " evening_checkin, evening_time) values (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (pid, data["name"], data["birth_date"], data["timezone"], data["checkin_time"],
              json.dumps(data.get("place_keywords", [])), data.get("family_name"),
              data.get("family_phone"), data.get("senior_push_token"),
-             data.get("family_push_token"), today.isoformat()),
+             data.get("family_push_token"), today.isoformat(),
+             int(bool(data.get("evening_checkin"))), data.get("evening_time") or "19:00"),
         )
     return get_person(pid)
 
@@ -143,15 +169,15 @@ def all_people() -> list[dict]:
 
 def add_checkin(pid: str, day: date, completed_at: str, local_hour: float,
                 result: dict, features: dict | None, family_says_different: bool | None,
-                duration_s: float | None = None) -> str:
+                duration_s: float | None = None, session: str = "morning") -> str:
     cid = uuid.uuid4().hex[:12]
     with db() as c:
         c.execute(
             "insert into checkins (id, person_id, local_date, completed_at, local_hour, result, features,"
-            " family_says_different, duration_s) values (?,?,?,?,?,?,?,?,?)",
+            " family_says_different, duration_s, session) values (?,?,?,?,?,?,?,?,?,?)",
             (cid, pid, day.isoformat(), completed_at, local_hour, json.dumps(result),
              json.dumps(features) if features else None,
-             None if family_says_different is None else int(family_says_different), duration_s),
+             None if family_says_different is None else int(family_says_different), duration_s, session),
         )
     return cid
 
@@ -194,16 +220,22 @@ def audio_path(cid: str, exercise_id: str) -> Path | None:
     return next(folder.glob(f"{exercise_id}.*"), None)
 
 
-def update_checkin_result(cid: str, result: dict, family_says_different: bool) -> None:
+def update_checkin_result(cid: str, result: dict, family_says_different: bool | None = None) -> None:
     with db() as c:
-        c.execute("update checkins set result = ?, family_says_different = ? where id = ?",
-                  (json.dumps(result), int(family_says_different), cid))
+        c.execute("update checkins set result = ? where id = ?", (json.dumps(result), cid))
+        if family_says_different is not None:
+            c.execute("update checkins set family_says_different = ? where id = ?", (int(family_says_different), cid))
 
 
-def checkins(pid: str) -> list[dict]:
-    """Oldest first."""
+def checkins(pid: str, session: str | None = "morning") -> list[dict]:
+    """Oldest first. The morning check-in is the day's check-in; the evening
+    one is extra. session=None returns both."""
     with db() as c:
-        rows = c.execute("select * from checkins where person_id = ? order by local_date", (pid,))
+        if session is None:
+            rows = c.execute("select * from checkins where person_id = ? order by local_date, session desc", (pid,))
+        else:
+            rows = c.execute("select * from checkins where person_id = ? and session = ? order by local_date",
+                             (pid, session))
         out = []
         for r in rows:
             d = dict(r)
@@ -262,7 +294,7 @@ def save_audio(cid: str, exercise_id: str, data: bytes, ext: str) -> None:
 
 def delete_recordings(pid: str) -> int:
     n = 0
-    for c in checkins(pid):
+    for c in checkins(pid, None):
         folder = AUDIO_DIR / c["id"]
         if folder.exists():
             for f in folder.iterdir():

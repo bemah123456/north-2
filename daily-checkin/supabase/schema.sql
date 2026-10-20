@@ -14,7 +14,9 @@ create table people (
   family_phone text,
   senior_push_token text,
   family_push_token text,
-  created_date date not null
+  created_date date not null,
+  evening_checkin boolean not null default false,
+  evening_time time not null default '19:00'
 );
 
 create table checkins (
@@ -26,7 +28,10 @@ create table checkins (
   result jsonb not null,
   features jsonb,
   family_says_different boolean,
-  unique (person_id, local_date)
+  duration_s real,
+  ease integer,
+  session text not null default 'morning' check (session in ('morning', 'evening')),
+  unique (person_id, local_date, session)
 );
 
 create table days_off (

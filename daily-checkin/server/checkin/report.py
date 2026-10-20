@@ -47,6 +47,11 @@ def hand_agreement(checkins: list[dict], hands: dict[str, dict[str, str]]) -> di
                     unsure += 1
                     continue
                 same = app_ok == hand_ok
+            elif item["kind"] == "digit_span":
+                if item.get("misheard"):
+                    unsure += 1
+                    continue
+                same = item["correct_items"] == int(hand)
             elif item["part"] == "attention":
                 same = item["score"] == _attention_score(item["kind"], int(hand))
             else:

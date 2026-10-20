@@ -237,6 +237,8 @@ def misheard(kind: str, answer: str) -> bool:
     person than to count a mistake."""
     if not answer.strip():
         return True
+    if kind == "digit_span":
+        return not digits_said(answer) and not DONT_KNOW.search(answer)
     if kind in ("age", "year", "dob"):
         t = normalize(answer)
         if not numbers(t) and not (kind == "dob" and months_in(t)) and not DONT_KNOW.search(t):
@@ -282,6 +284,26 @@ def _sequence_score(said: list[int], expected: list[int]) -> int:
         elif item in expected[pos + 1:]:
             pos = expected.index(item, pos) + 1
     return correct
+
+
+def digits_said(answer: str) -> list[int]:
+    """Single digits in a digit span answer. Speech-to-text writes a run of
+    digits as one number ("4 9 2" as "492", "seven two" as "72"), and a lone
+    "for" or "to" in a list of numbers is a four or a two."""
+    toks = tokens(answer)
+    if any(t.isdigit() or t in _UNITS for t in toks):
+        toks = [_SOUND_ALIKE.get(t, t) for t in toks]
+    out: list[int] = []
+    for n in numbers(" ".join(toks), years=False):
+        out.extend(int(ch) for ch in str(n))
+    return out
+
+
+def score_digit_span(answer: str, expect: str) -> dict:
+    """How many of the digits were said back in the right (backwards) order."""
+    expected = [int(ch) for ch in expect]
+    correct = _sequence_score(digits_said(answer), expected)
+    return {"correct_items": correct, "needed": len(expected), "out_of": len(expected)}
 
 
 def score_attention(kind: str, answer: str) -> dict:
