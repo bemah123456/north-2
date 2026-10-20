@@ -149,7 +149,7 @@ def to_markdown(r: dict) -> str:
           f" {hit(x['rate'], 0.9)} |" for room, x in r["hand_agreement_by_room"].items()),
         f"| Average check-in length | {'n/a' if dur is None else f'{dur / 60:.1f} min'} | under 3 min"
         f" | {hit(dur, 180, higher=False)} |",
-        f"| Ease for the senior | {'n/a' if r['avg_ease'] is None else f'{r['avg_ease']:.1f} / 5'}"
+        f"| Ease for the senior (Easy 5, OK 3, Hard 1) | {'n/a' if r['avg_ease'] is None else f'{r['avg_ease']:.1f} / 5'}"
         f" ({r['ease_ratings']} ratings) | 4+ | {hit(r['avg_ease'], 4.0)} |",
         f"| Missed check-in alerts | {m['sent']} sent, {m['were_real']} of {m['family_answered']} answered"
         f" were real | count them all | |",
