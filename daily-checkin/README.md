@@ -29,6 +29,10 @@ The total uses the 4AT bands: 4+ is "Call their doctor today", 1 to 3 (or "some 
 
 **Missed check-ins.** The senior gets a reminder at their check-in time and again an hour later. After 3 hours the family gets "Mom hasn't done today's check-in. Give her a call." Two missed days in a row sends a stronger message. Families can mark days off. A check-in 3+ hours later than usual is also noted.
 
+## Design for older users
+
+The senior's phone shows one big button a day and nothing else to think about. Text is 22pt or larger, every colour reads at 7:1 contrast or better, and statuses always carry a symbol and a word as well as a colour. The question is read aloud, a pulsing circle shows when the app is listening, and the main action sits at the bottom where a thumb reaches it. Rarely used actions (change setup, server settings) are small links, and "Change setup" asks first so a stray tap can't disconnect anyone. Before and after screenshots are in `screenshots/redesign/`.
+
 ## Run it
 
 ```bash
@@ -66,7 +70,7 @@ Run the missed check-in job every 10 minutes: `curl -X POST http://<server>/jobs
 Start with [HOME-TESTING.md](HOME-TESTING.md). It covers getting the app onto testers' phones with Expo Go, what to do each day (quiet days first, then TV and other noise), and getting the results back.
 
 - **Hand scoring:** download `GET /export/hand-scoring.csv`, which has one row per answer with a link to its recording. Listen, and fill `hand_score` with `right` or `wrong`, or for the backwards task the number of items said in order. Send the file back with `curl -X POST --data-binary @sheet.csv http://<server>/import/hand-scoring`.
-- **The numbers:** `python3 -m checkin.report` (or `GET /reports/testing?format=md`) prints the evidence-slide table. It covers days checked in, agreement with hand scoring, check-in length, the senior's 1 to 5 ease rating (asked at the end of each check-in), and how many missed check-in alerts families said were real (they answer in the family view).
+- **The numbers:** `python3 -m checkin.report` (or `GET /reports/testing?format=md`) prints the evidence-slide table. It covers days checked in, agreement with hand scoring, check-in length, the senior's ease rating (Easy, OK or Hard at the end of each check-in, scored 5, 3 and 1, so the 4+ target means mostly Easy), and how many missed check-in alerts families said were real (they answer in the family view).
 
 ## Retraining the model on real check-ins (plan day 5)
 

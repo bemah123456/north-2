@@ -1,6 +1,6 @@
 // The senior's daily check-in: the app reads each question aloud, shows it
 // in large type, and listens. It moves on by itself after a few seconds of
-// quiet, or when they tap "I'm done". Before the first question it listens
+// quiet, or when they tap "I'm finished". Before the first question it listens
 // to the room for a few seconds and asks them to turn the TV down if it's
 // loud, because background talk makes healthy answers get misheard. If the
 // server can't make out an answer, the question is asked once more, and if
@@ -19,8 +19,8 @@ import {
 } from 'expo-audio';
 
 import { Answer, Exercise, Session, api } from '../api';
-import { colors, type } from '../theme';
-import { BigButton, Body, Field, Screen, Title } from '../ui';
+import { colors, maxScale, type } from '../theme';
+import { Badge, BigButton, Body, Field, Progress, Screen, Title } from '../ui';
 
 const SPEAKING_DB = -40; // louder than this counts as talking
 const QUIET_TO_FINISH_MS = 4000;
@@ -238,111 +238,126 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
       const result = await api.submit(personId, answers.current, (Date.now() - startedAt.current) / 1000, session);
       setCheckinId(result.checkin_id);
       setPhase('done');
-      Speech.speak('All done. Thank you! How easy was that?', { rate: SPEECH_RATE });
+      Speech.speak('All done. Thank you! Was that easy or hard?', { rate: SPEECH_RATE });
     } catch (e) {
       setError(String((e as Error).message));
       setPhase('error');
     }
   }
 
-  if (phase === 'roomcheck') {
+  if (phase === 'roomcheck' || phase === 'checking' || phase === 'loading' || phase === 'sending') {
+    const words = {
+      roomcheck: 'Getting ready to listen…',
+      checking: 'One moment…',
+      loading: 'Getting ready…',
+      sending: 'Saving your answers…',
+    }[phase];
     return (
       <Screen>
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Body>Getting ready to listen…</Body>
+          <ActivityIndicator size="large" color={colors.primary} style={{ transform: [{ scale: 1.6 }] }} />
+          <Text style={styles.wait}>{words}</Text>
         </View>
       </Screen>
     );
   }
   if (phase === 'noisy') {
     return (
-      <Screen>
+      <Screen
+        footer={
+          <>
+            <BigButton label="It's quieter now" onPress={checkRoom} />
+            <BigButton label="Start anyway" kind="secondary" onPress={() => setStarted(true)} />
+          </>
+        }
+      >
         <Title>It's a bit noisy</Title>
-        <Body>Could you turn down the TV or radio, or go somewhere quieter? Background voices make it hard to hear your answers.</Body>
-        <BigButton label="I've made it quieter" onPress={checkRoom} />
-        <BigButton label="Start anyway" kind="secondary" onPress={() => setStarted(true)} />
+        <Body>Could you turn down the TV or radio, or go somewhere quieter?</Body>
+        <Body muted>Background voices make it hard to hear your answers.</Body>
       </Screen>
     );
   }
   if (phase === 'tv') {
     return (
-      <Screen>
+      <Screen
+        footer={
+          <>
+            <BigButton label="It's off now" onPress={() => afterTv(true)} />
+            <BigButton label="Keep going" kind="secondary" onPress={() => afterTv(false)} />
+          </>
+        }
+      >
         <Title>Is a TV or radio on?</Title>
         <Body>It sounds like someone else is talking in the background. Could you turn it off so I can hear you clearly?</Body>
-        <BigButton label="It's off now" onPress={() => afterTv(true)} />
-        <BigButton label="Keep going" kind="secondary" onPress={() => afterTv(false)} />
-      </Screen>
-    );
-  }
-  if (phase === 'checking') {
-    return (
-      <Screen>
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Body>One moment…</Body>
-        </View>
-      </Screen>
-    );
-  }
-  if (phase === 'loading' || phase === 'sending') {
-    return (
-      <Screen>
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Body muted>{phase === 'sending' ? 'Saving your answers…' : 'Getting ready…'}</Body>
-        </View>
       </Screen>
     );
   }
   if (phase === 'done') {
+    const asking = !!checkinId && !rated;
     return (
-      <Screen>
-        <Title>All done. Thank you!</Title>
-        {checkinId && !rated ? (
-          <>
-            <Body>How easy was that? Tap a number: 1 is very hard, 5 is very easy.</Body>
-            <View style={styles.ratings}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <View key={n} style={{ flex: 1 }}>
-                  <BigButton
-                    label={String(n)}
-                    kind="secondary"
-                    onPress={() => {
-                      setRated(true);
-                      api.ease(checkinId, n).catch(() => {});
-                    }}
-                  />
-                </View>
-              ))}
-            </View>
-          </>
-        ) : (
-          <Body>See you tomorrow.</Body>
-        )}
-        <BigButton label="Back" onPress={onFinished} />
+      <Screen
+        footer={
+          asking ? (
+            // Three plain choices instead of a 1 to 5 scale, stored on the same scale.
+            ([['Easy', 5], ['OK', 3], ['Hard', 1]] as const).map(([label, n]) => (
+              <BigButton
+                key={label}
+                label={label}
+                kind="secondary"
+                onPress={() => {
+                  setRated(true);
+                  api.ease(checkinId, n).catch(() => {});
+                }}
+              />
+            ))
+          ) : (
+            <BigButton label="Back to home" onPress={onFinished} />
+          )
+        }
+      >
+        <View style={styles.center}>
+          <Badge mode="done" />
+          <Title>All done. Thank you!</Title>
+          <Body center>{asking ? 'Was that easy or hard?' : 'See you tomorrow.'}</Body>
+        </View>
       </Screen>
     );
   }
   if (phase === 'error') {
     return (
-      <Screen>
-        <Title>Something went wrong</Title>
-        <Body>{error}</Body>
-        <BigButton label="Back" onPress={onFinished} />
+      <Screen footer={<BigButton label="Back to home" onPress={onFinished} />}>
+        <Title>Sorry, something went wrong</Title>
+        <Body>Your family can still see that you tried today. You can try again later.</Body>
+        <Body muted>{error}</Body>
       </Screen>
     );
   }
 
   const ex = exercises[index];
+  const listening = phase === 'listening';
   return (
-    <Screen scroll={false}>
-      <Text style={styles.step}>Question {index + 1} of {exercises.length}</Text>
-      <Text style={styles.prompt}>{ex.caption || ex.prompt}</Text>
-      {phase === 'listening' && (
-        <View style={styles.listening} accessibilityLiveRegion="polite">
-          <View style={[styles.dot, { opacity: (state.metering ?? -60) > SPEAKING_DB ? 1 : 0.35 }]} />
-          <Text style={styles.listeningText}>Listening… take your time</Text>
+    <Screen
+      footer={
+        <>
+          {listening && <BigButton label="I'm finished" onPress={finishAnswer} />}
+          {phase === 'typing' && <BigButton label="Next" onPress={submitTyped} />}
+          <BigButton label="Hear it again" kind="secondary" onPress={repeatQuestion} />
+        </>
+      }
+    >
+      <Progress at={index + 1} of={exercises.length} />
+      <Text style={styles.prompt} maxFontSizeMultiplier={maxScale.heading}>{ex.caption || ex.prompt}</Text>
+      {phase === 'speaking' && (
+        <View style={styles.status} accessibilityLiveRegion="polite">
+          <Badge mode="speaking" />
+          <Text style={styles.statusText}>Listen…</Text>
+        </View>
+      )}
+      {listening && (
+        <View style={styles.status} accessibilityLiveRegion="polite">
+          <Badge mode="listening" active={(state.metering ?? -60) > SPEAKING_DB} />
+          <Text style={styles.statusText}>I'm listening</Text>
+          <Text style={styles.statusHint}>Take your time</Text>
         </View>
       )}
       {phase === 'typing' && (
@@ -355,21 +370,16 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
           returnKeyType="next"
         />
       )}
-      <View style={{ flex: 1 }} />
-      {phase === 'listening' && <BigButton label="I'm done" onPress={finishAnswer} />}
-      {phase === 'typing' && <BigButton label="Next" onPress={submitTyped} />}
-      <BigButton label="Say that again" kind="secondary" onPress={repeatQuestion} />
-      {Platform.OS === 'web' && !useTyping && <Body muted>Speak into your computer's microphone.</Body>}
+      {Platform.OS === 'web' && !useTyping && <Body muted center>Speak into your computer's microphone.</Body>}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  ratings: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
-  step: { fontSize: type.small, color: colors.muted, marginBottom: 12 },
-  prompt: { fontSize: type.huge, lineHeight: 46, fontWeight: '600', color: colors.text, marginBottom: 32 },
-  listening: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  dot: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.red },
-  listeningText: { fontSize: type.big, color: colors.text },
+  wait: { fontSize: type.big, fontWeight: '700', color: colors.text, textAlign: 'center', marginTop: 24 },
+  prompt: { fontSize: type.huge, lineHeight: 48, fontWeight: '700', color: colors.text, marginBottom: 16 },
+  status: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  statusText: { fontSize: type.big, fontWeight: '800', color: colors.text },
+  statusHint: { fontSize: type.body, color: colors.muted, marginTop: 4 },
 });

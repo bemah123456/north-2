@@ -1,11 +1,11 @@
 // The family view: one row per day, newest first, with what to do and why.
 
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Alert, api, DayRow, Person, Result } from '../api';
-import { colors, statusColor, type } from '../theme';
-import { BigButton, Body, Card, Screen, Title } from '../ui';
+import { colors, maxScale, statusColor, statusSoft, type } from '../theme';
+import { BigButton, Body, Card, QuietButton, Screen, Section, StatusIcon, StatusPill, Title } from '../ui';
 
 function niceDate(iso: string) {
   const d = new Date(`${iso}T12:00:00`);
@@ -25,6 +25,7 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
   const [open, setOpen] = useState<string | null>(null);
   const [detail, setDetail] = useState<Result | null>(null);
   const [error, setError] = useState('');
+  const [showAll, setShowAll] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -40,6 +41,8 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
 
   useEffect(() => {
     load();
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && load());
+    return () => sub.remove();
   }, [load]);
 
   async function toggle(row: DayRow) {
@@ -62,27 +65,64 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
   }
 
   const latest = days[0];
+  const week = days.slice(0, 7).reverse();
   return (
     <Screen>
+      <Text style={styles.brand}>Family view</Text>
       <Title>{person?.name ?? 'Check-ins'}</Title>
-      {!!error && <Body muted>Can't reach the server: {error}</Body>}
+      {!!error && (
+        <Card tint={colors.amberSoft}>
+          <Body>Can't reach the server right now.</Body>
+          <BigButton label="Try again" kind="secondary" onPress={load} />
+        </Card>
+      )}
       {latest && (
-        <Card accent={statusColor[latest.status]}>
+        <Card tint={statusSoft[latest.status]} accent={statusColor[latest.status]}>
           <Text style={styles.smallCaps}>Today</Text>
-          <Text style={[styles.headline, { color: statusColor[latest.status] }]}>{latest.headline}</Text>
-          {latest.reasons.map((r) => (
+          <View style={styles.todayRow}>
+            <StatusIcon status={latest.status} size={56} />
+            <Text style={[styles.headline, { color: statusColor[latest.status] }]}>{latest.headline}</Text>
+          </View>
+          {(showAll ? latest.reasons : latest.reasons.slice(0, 3)).map((r) => (
             <Body key={r}>• {r}</Body>
           ))}
+          {latest.reasons.length > 3 && (
+            <QuietButton
+              label={showAll ? 'Show fewer reasons' : `Show all ${latest.reasons.length} reasons`}
+              onPress={() => setShowAll(!showAll)}
+            />
+          )}
         </Card>
       )}
 
-      <Text style={styles.section}>Recent days</Text>
+      {week.length > 1 && (
+        <View style={styles.week} accessibilityLabel="The last week at a glance">
+          {week.map((row) => (
+            <View key={row.date} style={styles.weekDay}>
+              <StatusIcon status={row.status} size={36} />
+              <Text style={styles.weekLabel} maxFontSizeMultiplier={maxScale.tight}>{new Date(`${row.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' })}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      <Section>Recent days</Section>
+      <Body muted>Tap a day for its answers and details.</Body>
       {days.map((row) => (
-        <Pressable key={row.date} onPress={() => toggle(row)} accessibilityRole="button">
+        <Pressable
+          key={row.date}
+          onPress={() => toggle(row)}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open === row.date }}
+          accessibilityLabel={`${niceDate(row.date)}: ${row.headline}`}
+        >
           <Card accent={statusColor[row.status]}>
             <View style={styles.row}>
-              <Text style={styles.date}>{niceDate(row.date)}</Text>
-              <Text style={[styles.status, { color: statusColor[row.status] }]}>{row.headline}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.date}>{niceDate(row.date)}</Text>
+                <StatusPill status={row.status} label={row.headline} />
+              </View>
+              <Text style={styles.chevron}>{open === row.date ? '⌃' : '⌄'}</Text>
             </View>
             {open === row.date && (
               <View style={{ marginTop: 12 }}>
@@ -98,22 +138,23 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
 
       {alerts.length > 0 && (
         <>
-          <Text style={styles.section}>Alerts</Text>
+          <Section>Alerts sent to you</Section>
           {alerts.slice(0, 5).map((a) => (
             <Card key={`${a.date}${a.kind}`}>
-              <Body muted>
-                {niceDate(a.date)}: {a.message}
+              <Text style={styles.date}>{niceDate(a.date)}</Text>
+              <Body>
+                {a.message}
                 {a.delivered ? '' : ' (not sent: test mode)'}
               </Body>
               {a.kind.startsWith('missed') &&
                 (a.was_real === null ? (
                   <>
-                    <Body>Was this a real concern?</Body>
-                    <View style={styles.row}>
-                      <View style={{ flex: 1, marginRight: 6 }}>
+                    <Body muted>Was this a real concern?</Body>
+                    <View style={styles.pair}>
+                      <View style={{ flex: 1 }}>
                         <BigButton label="Yes" kind="secondary" onPress={() => api.alertFeedback(personId, a.date, a.kind, true).then(load)} />
                       </View>
-                      <View style={{ flex: 1, marginLeft: 6 }}>
+                      <View style={{ flex: 1 }}>
                         <BigButton label="No, all fine" kind="secondary" onPress={() => api.alertFeedback(personId, a.date, a.kind, false).then(load)} />
                       </View>
                     </View>
@@ -126,10 +167,10 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
         </>
       )}
 
-      <BigButton label="Refresh" onPress={load} />
+      <Section>Settings</Section>
       {person && (
         <Card>
-          <Text style={styles.section}>Evening check-in: {person.evening_checkin ? `on, at ${person.evening_time}` : 'off'}</Text>
+          <Text style={styles.settingTitle}>Evening check-in: {person.evening_checkin ? `on, at ${person.evening_time}` : 'off'}</Text>
           <Body muted>
             A one-minute second check-in in the evening, compared with the morning. Delirium often comes and goes
             during the day, so a worse evening can show what one check-in misses.
@@ -141,16 +182,21 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
           />
         </Card>
       )}
-      <BigButton
-        label="Mark tomorrow as a day off"
-        kind="secondary"
-        onPress={async () => {
-          await api.dayOff(personId, tomorrow(), true);
-          load();
-        }}
-      />
+      <Card>
+        <Text style={styles.settingTitle}>Away tomorrow?</Text>
+        <Body muted>A day off means no reminders and no missed check-in text.</Body>
+        <BigButton
+          label="Mark tomorrow as a day off"
+          kind="secondary"
+          onPress={async () => {
+            await api.dayOff(personId, tomorrow(), true);
+            load();
+          }}
+        />
+      </Card>
       <Body muted>Screening only, not a diagnosis. If you're worried, call their doctor.</Body>
-      <BigButton label="Change setup" kind="secondary" onPress={onSignOut} />
+      <QuietButton label="Refresh" onPress={load} />
+      <QuietButton label="Change setup" onPress={onSignOut} />
     </Screen>
   );
 }
@@ -159,11 +205,11 @@ function Detail({ result, onReport }: { result: Result; onReport: (different: bo
   return (
     <View>
       <Text style={styles.section}>Did they seem different from their usual self?</Text>
-      <View style={styles.row}>
-        <View style={{ flex: 1, marginRight: 6 }}>
+      <View style={styles.pair}>
+        <View style={{ flex: 1 }}>
           <BigButton label="Yes" kind={result.parts.acute_change && result.reasons.includes('family says they seem different today') ? 'danger' : 'secondary'} onPress={() => onReport(true)} />
         </View>
-        <View style={{ flex: 1, marginLeft: 6 }}>
+        <View style={{ flex: 1 }}>
           <BigButton label="No" kind="secondary" onPress={() => onReport(false)} />
         </View>
       </View>
@@ -217,12 +263,19 @@ function Detail({ result, onReport }: { result: Result; onReport: (different: bo
 }
 
 const styles = StyleSheet.create({
-  smallCaps: { fontSize: type.small, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
-  headline: { fontSize: type.big, fontWeight: '700', marginVertical: 6 },
-  section: { fontSize: type.body, fontWeight: '700', color: colors.text, marginTop: 16, marginBottom: 8 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' },
-  date: { fontSize: type.body, color: colors.text },
-  status: { fontSize: type.body, fontWeight: '700' },
+  brand: { fontSize: type.small, fontWeight: '800', color: colors.primary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
+  smallCaps: { fontSize: type.small, fontWeight: '700', color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  todayRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginVertical: 10 },
+  headline: { flex: 1, fontSize: type.big, lineHeight: 34, fontWeight: '800' },
+  week: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: colors.card, borderRadius: 24, borderWidth: 1, borderColor: colors.border, paddingVertical: 14, paddingHorizontal: 10, marginBottom: 4 },
+  weekDay: { alignItems: 'center', gap: 6, flex: 1 },
+  weekLabel: { fontSize: type.small, fontWeight: '700', color: colors.muted },
+  section: { fontSize: type.body, fontWeight: '800', color: colors.text, marginTop: 16, marginBottom: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  pair: { flexDirection: 'row', gap: 12 },
+  chevron: { fontSize: 32, color: colors.primary, fontWeight: '700' },
+  date: { fontSize: type.body, fontWeight: '700', color: colors.text, marginBottom: 6 },
+  settingTitle: { fontSize: type.body, fontWeight: '800', color: colors.text, marginBottom: 6 },
   q: { fontSize: type.small, color: colors.muted },
   a: { fontSize: type.body, color: colors.text },
 });
