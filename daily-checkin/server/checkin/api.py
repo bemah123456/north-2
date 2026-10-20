@@ -10,7 +10,7 @@ import hashlib
 import io
 import json
 import os
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
@@ -20,10 +20,11 @@ from pydantic import BaseModel, Field
 
 from . import notify, report, store, transcribe
 from .baseline import load_model
-from .exercises import build_checkin
+from .change import duration_z
+from .exercises import build_checkin, build_session
 from .features import FEATURE_DIRECTIONS
 from .missed import day_statuses, due_actions, is_late, local_now
-from .scoring import HEADLINES, retry_reason, score_checkin, words_from_json
+from .scoring import apply_evening, finalize, retry_reason, score_checkin, score_evening, words_from_json
 
 DEMO_MODE = os.environ.get("DEMO_MODE") == "1"
 
@@ -59,6 +60,8 @@ class PersonIn(BaseModel):
     family_phone: str | None = None
     senior_push_token: str | None = None
     family_push_token: str | None = None
+    evening_checkin: bool = Field(False, description="A shorter second check-in in the evening, compared with the morning")
+    evening_time: str = Field("19:00", pattern=r"^\d{2}:\d{2}$")
 
 
 class PersonPatch(BaseModel):
@@ -70,6 +73,8 @@ class PersonPatch(BaseModel):
     family_phone: str | None = None
     senior_push_token: str | None = None
     family_push_token: str | None = None
+    evening_checkin: bool | None = None
+    evening_time: str | None = Field(None, pattern=r"^\d{2}:\d{2}$")
 
 
 class FamilyReport(BaseModel):
@@ -136,14 +141,46 @@ def _local_day(person: dict, override: str | None) -> tuple[date, datetime]:
     return now.date(), now
 
 
+EVENING_OPENS_EARLY_MIN = 60
+
+
+def _done(pid: str, day: date, session: str) -> bool:
+    return any(c["local_date"] == day.isoformat() for c in store.checkins(pid, session))
+
+
+def _session(value, p: dict, day: date) -> str:
+    """Which check-in an answer belongs to. The evening one only exists when
+    the family turned it on and the morning one is done."""
+    session = value or "morning"
+    if session not in ("morning", "evening"):
+        raise HTTPException(400, "session is morning or evening")
+    if session == "evening" and not (p["evening_checkin"] and _done(p["id"], day, "morning")):
+        raise HTTPException(409, "The evening check-in is off, or the morning one isn't done yet")
+    return session
+
+
 @app.get("/people/{pid}/today", dependencies=[Depends(auth)])
-def today_plan(pid: str, date_override: str | None = None) -> dict:
+def today_plan(pid: str, date_override: str | None = None, session: str | None = None) -> dict:
+    """The next check-in to do today. Once the morning one is done, and if
+    the family turned it on, the evening one opens an hour before its time.
+    `session=evening` asks for the evening one whatever the time."""
     p = person_or_404(pid)
-    day, _ = _local_day(p, date_override)
-    done = any(c["local_date"] == day.isoformat() for c in store.checkins(pid))
+    day, now = _local_day(p, date_override)
+    morning_done = _done(pid, day, "morning")
+    evening_at = p["evening_time"] if p["evening_checkin"] else None
+    if session == "evening" or (morning_done and evening_at):
+        opens = datetime.combine(day, time.fromisoformat(p["evening_time"]), now.tzinfo) \
+            - timedelta(minutes=EVENING_OPENS_EARLY_MIN)
+        if session == "evening" or now >= opens:
+            _session("evening", p, day)
+            return {"date": day.isoformat(), "session": "evening", "evening_at": evening_at,
+                    "already_done": _done(pid, day, "evening"),
+                    "exercises": [e.to_dict() for e in build_session(pid, day, "evening")]}
     return {
         "date": day.isoformat(),
-        "already_done": done,
+        "session": "morning",
+        "evening_at": evening_at,
+        "already_done": morning_done,
         "exercises": [e.to_dict() for e in build_checkin(pid, day)],
     }
 
@@ -179,7 +216,8 @@ async def check_answer(pid: str, request: Request) -> dict:
     p = person_or_404(pid)
     form = await request.form()
     day, _ = _local_day(p, form.get("date_override"))
-    ex = next((e for e in build_checkin(pid, day) if e.id == form.get("exercise_id")), None)
+    session = _session(form.get("session"), p, day)
+    ex = next((e for e in build_session(pid, day, session) if e.id == form.get("exercise_id")), None)
     f = form.get("audio")
     if ex is None or f is None or isinstance(f, str):
         raise HTTPException(400, "Send exercise_id and audio")
@@ -194,14 +232,15 @@ async def submit_checkin(pid: str, request: Request) -> dict:
     {exercise_id, transcript?, words?}. Recorded audio goes in file fields
     named `audio_<exercise_id>` and is transcribed here. Typed answers
     (demo mode on the web) send a transcript and no words, so they are
-    scored on content only."""
+    scored on content only. `session` is "evening" for the evening check-in."""
     p = person_or_404(pid)
     form = await request.form()
     day, now_local = _local_day(p, form.get("date_override"))
-    if any(c["local_date"] == day.isoformat() for c in store.checkins(pid)):
+    session = _session(form.get("session"), p, day)
+    if _done(pid, day, session):
         raise HTTPException(409, "Already checked in today")
 
-    exercises = build_checkin(pid, day)
+    exercises = build_session(pid, day, session)
     given: dict[str, dict] = {}
     for a in json.loads(form.get("answers") or "[]"):
         given[a["exercise_id"]] = {"transcript": a.get("transcript", ""),
@@ -215,41 +254,64 @@ async def submit_checkin(pid: str, request: Request) -> dict:
         audio[ex.id] = (data, f.content_type or "audio/m4a", (f.filename or "a.m4a").rsplit(".", 1)[-1])
         given[ex.id] = _hear(ex, data, f.content_type)
 
+    hour = now_local.hour + now_local.minute / 60
+    duration = form.get("duration_s")
+    duration = float(duration) if duration else None
+    if session == "evening":
+        return _submit_evening(p, day, exercises, given, audio, hour, duration)
+
     previous = store.checkins(pid)
-    history = [c["features"] for c in previous
-               if c["features"] and c["result"]["band"] != "possible_delirium"
-               and not c["result"].get("noisy")]
+    usual = [c for c in previous
+             if c["result"]["band"] != "possible_delirium" and not c["result"].get("noisy")]
+    history = [c["features"] for c in usual if c["features"]]
+    past = [c["result"].get("measures") for c in usual]
     family = form.get("family_says_different")
     family_flag = None if family in (None, "") else family in ("1", "true", "yes")
-    result = score_checkin(p, day, exercises, given, history, family_flag)
+    yesterday = day - timedelta(days=1)
+    routine = {
+        "late": is_late([c["local_hour"] for c in previous], hour),
+        "missed_yesterday": yesterday >= date.fromisoformat(p["created_date"])
+        and not any(c["local_date"] == yesterday.isoformat() for c in previous)
+        and yesterday not in store.days_off(pid),
+        "duration_z": duration_z([c["duration_s"] for c in usual], duration),
+    }
+    result = score_checkin(p, day, exercises, given, history, family_flag, past, routine)
+    late = "checked in much later in the day than usual"
+    if routine["late"] and late not in result["reasons"]:
+        result["reasons"].append(late)
 
-    hour = now_local.hour + now_local.minute / 60
-    if is_late([c["local_hour"] for c in previous], hour):
-        result["reasons"].append("checked in much later in the day than usual")
-
-    duration = form.get("duration_s")
     cid = store.add_checkin(pid, day, utcnow().isoformat(), hour, result, result["features"], family_flag,
-                            float(duration) if duration else None)
+                            duration)
     for ex_id, (data, _, ext) in audio.items():
         store.save_audio(cid, ex_id, data, ext)
     result["checkin_id"] = cid
     return result
 
 
+def _submit_evening(p: dict, day: date, exercises, given: dict, audio: dict, hour: float,
+                    duration: float | None) -> dict:
+    """Score the evening against this morning, and add the comparison to
+    the day's result, which is what the family sees."""
+    pid = p["id"]
+    morning = next(c for c in store.checkins(pid) if c["local_date"] == day.isoformat())
+    ratios = [c["result"]["comparison"]["latency_ratio"] for c in store.checkins(pid, "evening")
+              if c["result"].get("comparison", {}).get("latency_ratio")]
+    evening = score_evening(p, day, exercises, given, morning["result"], ratios)
+    cid = store.add_checkin(pid, day, utcnow().isoformat(), hour, evening, evening["features"], None,
+                            duration, session="evening")
+    for ex_id, (data, _, ext) in audio.items():
+        store.save_audio(cid, ex_id, data, ext)
+    store.update_checkin_result(morning["id"], apply_evening(morning["result"], cid, evening))
+    evening["checkin_id"] = cid
+    evening["session"] = "evening"
+    return evening
+
+
 def apply_family_report(result: dict, different: bool) -> dict:
     """Re-score the acute-change item after the family answers."""
-    reason = "family says they seem different today"
     result = json.loads(json.dumps(result))
-    voice_change = (result["voice"]["change_probability"] or 0) >= 0.7
-    result["reasons"] = [r for r in result["reasons"] if r != reason]
-    if different:
-        result["reasons"].insert(0, reason)
-    result["parts"]["acute_change"] = 4 if (different or voice_change) else 0
-    result["total"] = sum(result["parts"].values())
-    t = result["total"]
-    result["band"] = "possible_delirium" if t >= 4 else "possible_impairment" if t >= 1 else "unlikely"
-    result["headline"] = HEADLINES[result["band"]]
-    return result
+    result["family_says_different"] = different
+    return finalize(result)
 
 
 @app.post("/checkins/{cid}/family-report", dependencies=[Depends(auth)])
@@ -371,7 +433,7 @@ def export_hand_scoring(request: Request) -> str:
     done = store.hand_scores()
     base = str(request.base_url).rstrip("/")
     for p in store.all_people():
-        for c in store.checkins(p["id"]):
+        for c in store.checkins(p["id"], None):
             for item in c["result"]["items"]:
                 if item["part"] == "alertness":
                     continue

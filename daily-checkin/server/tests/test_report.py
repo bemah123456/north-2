@@ -54,7 +54,7 @@ def test_testing_numbers(client):
     assert by_room["noisy"]["answers_compared"] == 0
     assert r["avg_duration_s"] == 150 and r["avg_ease"] == 4
     h = r["hand_agreement"]
-    assert h["answers_compared"] == 15 and h["agree"] == 14
+    assert h["answers_compared"] == 18 and h["agree"] == 17  # 6 answers a day, digit span included
     assert r["missed_alerts"]["family_answered"] == 1 and r["missed_alerts"]["were_real"] == 0
     md = report.to_markdown(r)
     assert "| Days checked in | 75% | 80%+ | missed |" in md

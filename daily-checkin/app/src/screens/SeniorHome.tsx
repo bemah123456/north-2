@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { api, Person } from '../api';
+import { api, Person, TodayPlan } from '../api';
 import { scheduleDailyReminder } from '../reminders';
 import { BigButton, Body, Screen, Title } from '../ui';
 
@@ -10,15 +10,15 @@ export default function SeniorHome({ personId, onStart, onSignOut }: {
   onSignOut: () => void;
 }) {
   const [person, setPerson] = useState<Person | null>(null);
-  const [done, setDone] = useState(false);
+  const [plan, setPlan] = useState<TodayPlan | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     try {
       const [p, today] = await Promise.all([api.getPerson(personId), api.today(personId)]);
       setPerson(p);
-      setDone(today.already_done);
-      await scheduleDailyReminder(p.checkin_time);
+      setPlan(today);
+      await scheduleDailyReminder(p.checkin_time, p.evening_checkin ? p.evening_time : null);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -34,10 +34,19 @@ export default function SeniorHome({ personId, onStart, onSignOut }: {
   return (
     <Screen>
       <Title>{hello}{person ? `, ${person.name}` : ''}!</Title>
-      {done ? (
+      {plan?.already_done ? (
         <>
           <Body>You've done today's check-in. Thank you!</Body>
-          <Body muted>See you tomorrow.</Body>
+          <Body muted>
+            {plan.session === 'morning' && plan.evening_at
+              ? `Your short evening check-in opens an hour before ${plan.evening_at}.`
+              : 'See you tomorrow.'}
+          </Body>
+        </>
+      ) : plan?.session === 'evening' ? (
+        <>
+          <Body>Time for your short evening check-in. It takes about a minute.</Body>
+          <BigButton label="Start my evening check-in" onPress={onStart} disabled={!person} />
         </>
       ) : (
         <>

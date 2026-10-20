@@ -51,6 +51,10 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
     setDetail(row.checkin_id ? await api.checkin(row.checkin_id) : null);
   }
 
+  async function setEvening(on: boolean) {
+    setPerson(await api.updatePerson(personId, { evening_checkin: on }));
+  }
+
   async function report(different: boolean) {
     if (!detail) return;
     setDetail(await api.familyReport(detail.checkin_id, different));
@@ -123,6 +127,20 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
       )}
 
       <BigButton label="Refresh" onPress={load} />
+      {person && (
+        <Card>
+          <Text style={styles.section}>Evening check-in: {person.evening_checkin ? `on, at ${person.evening_time}` : 'off'}</Text>
+          <Body muted>
+            A one-minute second check-in in the evening, compared with the morning. Delirium often comes and goes
+            during the day, so a worse evening can show what one check-in misses.
+          </Body>
+          <BigButton
+            label={person.evening_checkin ? 'Turn it off' : 'Turn it on'}
+            kind="secondary"
+            onPress={() => setEvening(!person.evening_checkin)}
+          />
+        </Card>
+      )}
       <BigButton
         label="Mark tomorrow as a day off"
         kind="secondary"
@@ -149,6 +167,29 @@ function Detail({ result, onReport }: { result: Result; onReport: (different: bo
           <BigButton label="No" kind="secondary" onPress={() => onReport(false)} />
         </View>
       </View>
+      {result.change && (
+        <>
+          <Text style={styles.section}>Compared with their usual</Text>
+          <Body>
+            {result.change.label} ({result.change.score} of 100)
+          </Body>
+          <Body muted>
+            {result.change.baseline_days >= 2
+              ? `Answers, timing, voice and alertness together, against their last ${result.change.baseline_days} usual days.`
+              : 'Still learning what their usual is (needs 2 check-ins).'}
+          </Body>
+        </>
+      )}
+      {result.evening && (
+        <>
+          <Text style={styles.section}>Evening check-in</Text>
+          <Body>
+            {result.evening.fluctuation === 'none'
+              ? 'About the same as the morning.'
+              : result.evening.reasons.join('; ')}
+          </Body>
+        </>
+      )}
       <Text style={styles.section}>What they said</Text>
       {result.items.map((it) => (
         <View key={it.exercise_id} style={{ marginBottom: 10 }}>

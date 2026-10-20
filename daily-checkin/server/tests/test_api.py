@@ -38,14 +38,15 @@ def typed(plan, overrides=None):
     out = []
     for ex in plan["exercises"]:
         key = ex["id"] if ex["part"] != "attention" else ex["kind"]
-        out.append({"exercise_id": ex["id"], "transcript": overrides.get(key, GOOD[key])})
+        right = ex["expect"] if ex["kind"] == "digit_span" else GOOD[key]
+        out.append({"exercise_id": ex["id"], "transcript": overrides.get(key, right)})
     return json.dumps(out)
 
 
 def test_full_day(client):
     p = person(client)
     plan = client.get(f"/people/{p['id']}/today", params={"date_override": "2026-10-19"}).json()
-    assert len(plan["exercises"]) == 6 and not plan["already_done"]
+    assert len(plan["exercises"]) == 7 and not plan["already_done"]
 
     r = client.post(f"/people/{p['id']}/checkins",
                     data={"answers": typed(plan, {"year": "1990"}), "date_override": "2026-10-19"})

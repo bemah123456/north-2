@@ -5,7 +5,7 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 
-export async function scheduleDailyReminder(checkinTime: string): Promise<boolean> {
+export async function scheduleDailyReminder(checkinTime: string, eveningTime: string | null = null): Promise<boolean> {
   if (Platform.OS === 'web') return false;
   const perm = await Notifications.requestPermissionsAsync();
   if (!perm.granted) return false;
@@ -15,5 +15,12 @@ export async function scheduleDailyReminder(checkinTime: string): Promise<boolea
     content: { title: 'Daily check-in', body: 'Time for your daily check-in. It only takes 2 minutes.' },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour, minute },
   });
+  if (eveningTime) {
+    const [eh, em] = eveningTime.split(':').map(Number);
+    await Notifications.scheduleNotificationAsync({
+      content: { title: 'Evening check-in', body: 'Time for your short evening check-in. It takes about a minute.' },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour: eh, minute: em },
+    });
+  }
   return true;
 }

@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from checkin.exercises import build_checkin
+from checkin.exercises import NUMBER_WORDS, build_checkin
 from checkin.features import checkin_features
 from checkin.scoring import score_checkin
 
@@ -21,12 +21,16 @@ GOOD = {
 }
 
 
-def answers(day, overrides=None, **voice):
+def said_back(ex):
+    return " ".join(NUMBER_WORDS[int(d)] for d in ex.expect)
+
+
+def answers(day, overrides=None, plan=None, **voice):
     overrides = overrides or {}
     out = {}
-    for ex in build_checkin("p1", day):
+    for ex in plan or build_checkin("p1", day):
         key = ex.id if ex.part != "attention" else ex.kind
-        text = overrides.get(key, GOOD[key])
+        text = overrides.get(key, said_back(ex) if ex.kind == "digit_span" else GOOD[key])
         out[ex.id] = {"transcript": text, "words": spoken(text, **voice) if text else []}
     return out
 
@@ -43,7 +47,7 @@ def history(days=4):
 def test_plan_rotates_but_is_stable():
     a = build_checkin("p1", DAY)
     assert a == build_checkin("p1", DAY)
-    assert [e.part for e in a] == ["alertness"] + ["orientation"] * 4 + ["attention"]
+    assert [e.part for e in a] == ["alertness"] + ["orientation"] * 4 + ["attention"] * 2
     plans = {tuple(e.prompt for e in build_checkin("p1", DAY + timedelta(days=i))) for i in range(6)}
     assert len(plans) > 1
 
