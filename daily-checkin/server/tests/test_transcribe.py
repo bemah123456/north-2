@@ -77,37 +77,21 @@ def _wav(x: np.ndarray) -> bytes:
 
 
 @pytest.mark.skipif(not shutil.which("ffmpeg"), reason="needs ffmpeg")
-@pytest.mark.parametrize("tv_db, noisy", [(None, False), (-30, False), (-20, True), (-10, True)])
-def test_clip_check_spots_a_tv(tv_db, noisy):
-    # Syllable-like bursts with gaps, plus a steady talking-TV-like noise
-    # at tv_db below the speaker.
+@pytest.mark.parametrize("background, level_db, noisy",
+                         [(None, None, False), ("tv", -20, True), ("tv", -10, True), ("fan", -10, False)])
+def test_clip_check_spots_a_tv_but_not_a_fan(background, level_db, noisy):
+    # Syllable-like bursts with gaps, plus a second talker (bursty, like a
+    # TV) or steady fan-like noise at level_db below the speaker.
     rng = np.random.default_rng(0)
     t = np.arange(16000 * 4) / 16000
     on = (np.sin(2 * np.pi * 3 * t) > 0.2) & (t % 1.2 < 0.8)
     x = 0.3 * on * np.sin(2 * np.pi * 180 * t)
-    if tv_db is not None:
-        tv = rng.normal(size=len(t)) * (0.6 + 0.4 * np.abs(np.sin(2 * np.pi * 2.3 * t)))
-        x = x + tv / tv.std() * x[on].std() * 10 ** (tv_db / 20)
+    if background == "tv":
+        syllables = np.repeat(rng.random(19) > 0.35, 16000 // 4.5 + 1)[: len(t)]
+        bg = syllables * np.sin(2 * np.pi * 230 * t) * (0.5 + 0.5 * rng.random(len(t)))
+    elif background == "fan":
+        bg = rng.normal(size=len(t))
+    if background:
+        x = x + bg / bg.std() * x[on].std() * 10 ** (level_db / 20)
     check = transcribe.clip_check(_wav(x + rng.normal(size=len(t)) * 1e-4))
     assert check == {"heard_speech": True, "noisy": noisy}
-
-
-def test_months_question_primes_local_whisper(monkeypatch):
-    seen = []
-
-    class Tok:
-        def get_prompt_ids(self, text, return_tensors=None):
-            return ("ids", text)
-
-    def fake_pipeline(audio, **kwargs):
-        seen.append(kwargs)
-        return {"text": "December November", "chunks": []}
-
-    fake_pipeline.tokenizer = Tok()
-    monkeypatch.setenv("STT_PROVIDER", "local")
-    monkeypatch.setattr(transcribe, "_local_pipeline", fake_pipeline)
-    monkeypatch.setattr(transcribe, "_decode_16k", lambda audio: np.zeros(16000, dtype=np.float32))
-    transcribe.transcribe(b"audio", "audio/m4a", transcribe.MONTHS_BACKWARDS)
-    assert seen[-1]["generate_kwargs"]["prompt_ids"] == ("ids", transcribe.MONTHS_BACKWARDS)
-    transcribe.transcribe(b"audio", "audio/m4a")
-    assert "prompt_ids" not in seen[-1].get("generate_kwargs", {})

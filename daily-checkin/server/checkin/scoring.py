@@ -72,7 +72,7 @@ def score_checkin(
     "heard_speech": bool?, "noisy": bool?}. The last two are set for
     recorded answers. When a clip has speech but the transcript can't be an
     answer, the item is left for a person to check instead of counted as a
-    mistake. Most clips noisy marks the check-in noisy.
+    mistake. Three or more noisy clips mark the check-in noisy.
     history: feature dicts from this person's earlier normal check-ins."""
     items = []
     mistakes = 0
@@ -166,7 +166,8 @@ def score_checkin(
     band = "possible_delirium" if total >= 4 else "possible_impairment" if total >= 1 else "unlikely"
     # Background noise (a TV, mostly) makes healthy answers look wrong. It
     # doesn't change the score; the family is told so they can weigh it.
-    noisy = sum(1 for g in given.values() if g.get("noisy")) * 2 > len(given)
+    # Like the research's per-check-in rule: 3 or more noisy answers.
+    noisy = sum(1 for g in given.values() if g.get("noisy")) >= 3
     if noisy and total:
         reasons.append("lots of background noise, so some answers may have been misheard")
 
