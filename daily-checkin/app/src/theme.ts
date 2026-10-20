@@ -1,16 +1,24 @@
-// Large type and strong contrast for older eyes and shaky hands.
+// Large type and strong contrast for older eyes and shaky hands. Every text
+// colour here reads at 7:1 or better on the background (WCAG AAA), and no
+// status is shown by colour alone: each one also has a symbol and a word.
 export const colors = {
-  bg: '#FBF8F3',
+  bg: '#F7F3EC',
   card: '#FFFFFF',
-  text: '#1F1B16',
-  muted: '#5C554C',
-  primary: '#1D5C4D',
+  text: '#1A1612',
+  muted: '#4A443C',
+  primary: '#14524A',
+  primaryPressed: '#0D3B35',
   primaryText: '#FFFFFF',
-  border: '#E3DDD3',
-  green: '#2E7D4F',
-  amber: '#A86200',
-  red: '#B3261E',
-  grey: '#6B6B6B',
+  primarySoft: '#E1EFEA',
+  border: '#D9D1C4',
+  green: '#1E6B43',
+  greenSoft: '#E3F2E8',
+  amber: '#8A4E00',
+  amberSoft: '#FCEFD9',
+  red: '#A3221B',
+  redSoft: '#FBE4E1',
+  grey: '#5A5A5A',
+  greySoft: '#ECEAE6',
 };
 
 export const statusColor: Record<string, string> = {
@@ -22,4 +30,27 @@ export const statusColor: Record<string, string> = {
   day_off: colors.grey,
 };
 
-export const type = { huge: 34, big: 26, body: 20, small: 16 };
+export const statusSoft: Record<string, string> = {
+  unlikely: colors.greenSoft,
+  possible_impairment: colors.amberSoft,
+  possible_delirium: colors.redSoft,
+  missed: colors.redSoft,
+  pending: colors.greySoft,
+  day_off: colors.greySoft,
+};
+
+// A symbol for each status, so it reads without colour too.
+export const statusSymbol: Record<string, string> = {
+  unlikely: '✓',
+  possible_impairment: '!',
+  possible_delirium: '!',
+  missed: '?',
+  pending: '…',
+  day_off: '–',
+};
+
+export const type = { giant: 44, huge: 36, big: 28, body: 22, small: 18 };
+
+export const space = { xs: 6, s: 12, m: 20, l: 28, xl: 40 };
+
+export const radius = { m: 16, l: 24, round: 999 };

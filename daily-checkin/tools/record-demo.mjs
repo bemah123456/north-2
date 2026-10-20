@@ -74,9 +74,9 @@ for (let i = 0; i < n; i++) {
   await page.getByRole('button', { name: 'Next' }).click();
 }
 await page.getByText('All done. Thank you!').waitFor();
-cap('Done in about two minutes. A quick 1 to 5 rating tells us if it felt easy.');
+cap('Done in about two minutes. One tap says if it felt easy or hard.');
 await wait(3500);
-await page.getByRole('button', { name: '5', exact: true }).click();
+await page.getByRole('button', { name: 'Easy', exact: true }).click();
 await page.getByText('See you tomorrow.').waitFor();
 await wait(2500);
 

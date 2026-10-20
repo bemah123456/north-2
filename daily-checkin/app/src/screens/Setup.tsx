@@ -2,11 +2,18 @@
 // just needs the code shown at the end.
 
 import { useState } from 'react';
-import { Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { api, Person, server } from '../api';
-import { colors, type } from '../theme';
-import { BigButton, Body, Field, Screen, Title } from '../ui';
+import { colors, radius, space, type } from '../theme';
+import { BigButton, Body, Card, Choice, Field, Pick, QuietButton, Screen, Section, Title } from '../ui';
+
+const TIMES = [
+  { value: '08:00', label: '8 am' },
+  { value: '09:00', label: '9 am' },
+  { value: '10:00', label: '10 am' },
+  { value: '11:00', label: '11 am' },
+];
 
 export type Role = 'senior' | 'family';
 
@@ -47,7 +54,7 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
   async function join() {
     setError('');
     try {
-      const p = await api.getPerson(code.trim());
+      const p = await api.getPerson(code.replace(/\s/g, ''));
       onReady('senior', p.id);
     } catch {
       setError("That code didn't work. Check it with your family.");
@@ -66,75 +73,116 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
 
   if (step === 'server') {
     return (
-      <Screen>
+      <Screen
+        footer={
+          <>
+            <BigButton label="Save" onPress={saveServer} />
+            <BigButton label="Back" kind="secondary" onPress={() => { setError(''); setAddress(server.get()); setStep('choose'); }} />
+          </>
+        }
+      >
         <Title>Server address</Title>
         <Body>Only change this if whoever runs your check-in server gave you an address.</Body>
         <Field label="Address" value={address} onChangeText={setAddress} autoCapitalize="none" autoCorrect={false} keyboardType="url" />
         {!!error && <Body>{error}</Body>}
-        <BigButton label="Save" onPress={saveServer} />
-        <BigButton label="Back" kind="secondary" onPress={() => { setError(''); setAddress(server.get()); setStep('choose'); }} />
       </Screen>
     );
   }
   if (step === 'choose') {
     return (
-      <Screen>
-        <Title>Daily check-in</Title>
-        <Body>A 2-minute spoken check-in each day, so your family knows you're doing well.</Body>
-        <BigButton label="I'm setting this up for a family member" onPress={() => setStep('family')} />
-        <BigButton label="My family gave me a code" kind="secondary" onPress={() => setStep('senior')} />
+      <Screen footer={<QuietButton label="Server settings" onPress={() => setStep('server')} />}>
+        <Text style={styles.brand}>Daily check-in</Text>
+        <Title>A two-minute chat each day, so your family knows you're well.</Title>
+        <Section>Who is setting this up?</Section>
+        <Choice
+          title="I'm setting this up for a family member"
+          detail="For a parent or grandparent. Takes about a minute."
+          onPress={() => setStep('family')}
+        />
+        <Choice
+          title="My family gave me a code"
+          detail="Type in the code to connect this phone."
+          onPress={() => setStep('senior')}
+        />
         <Body muted>Screening only, not a diagnosis.</Body>
-        <Text accessibilityRole="button" onPress={() => setStep('server')} style={{ fontSize: type.small, color: colors.muted, marginTop: 24 }}>
-          Server: {server.get()} (change)
-        </Text>
       </Screen>
     );
   }
   if (step === 'senior') {
     return (
-      <Screen>
+      <Screen
+        footer={
+          <>
+            <BigButton label="Continue" onPress={join} disabled={!code.trim()} />
+            <BigButton label="Back" kind="secondary" onPress={() => { setError(''); setStep('choose'); }} />
+          </>
+        }
+      >
         <Title>Enter your code</Title>
-        <Field label="Code from your family" value={code} onChangeText={setCode} autoCapitalize="none" />
+        <Body>Your family has a short code for you. Type it in the box.</Body>
+        <Field label="Your code" big value={code} onChangeText={setCode} autoCapitalize="none" autoCorrect={false} autoFocus />
         {!!error && <Body>{error}</Body>}
-        <BigButton label="Continue" onPress={join} disabled={!code.trim()} />
-        <BigButton label="Back" kind="secondary" onPress={() => setStep('choose')} />
       </Screen>
     );
   }
   if (step === 'code' && created) {
     return (
-      <Screen>
+      <Screen
+        footer={
+          <>
+            <BigButton label="Open the family view" onPress={() => onReady('family', created.id)} />
+            <BigButton label="This is their phone: start check-ins" kind="secondary" onPress={() => onReady('senior', created.id)} />
+          </>
+        }
+      >
         <Title>{created.name} is set up</Title>
-        <Body>On {created.name}'s phone, open this app, tap "My family gave me a code" and enter:</Body>
-        <Text selectable style={{ fontSize: type.huge, fontWeight: '700', color: colors.primary, marginVertical: 16 }}>
-          {created.id}
-        </Text>
+        <Body>On {created.name}'s phone, open this app, tap "My family gave me a code" and type:</Body>
+        <View style={styles.codeBox}>
+          {/* In groups of four so it's easy to read out and type. */}
+          <Text selectable style={styles.code} accessibilityLabel={`Code: ${created.id.split('').join(' ')}`}>
+            {created.id.match(/.{1,4}/g)?.join(' ')}
+          </Text>
+        </View>
         <Body muted>
-          They'll get a reminder at {created.checkin_time} each day. If they haven't checked in 3 hours later,
-          you'll get a text.
+          They'll get a reminder at {TIMES.find((t) => t.value === created.checkin_time)?.label ?? created.checkin_time} each
+          day. If they haven't checked in 3 hours later, you'll get a text.
         </Body>
-        <BigButton label="Open the family view" onPress={() => onReady('family', created.id)} />
-        <BigButton label="This is their phone: start check-ins" kind="secondary" onPress={() => onReady('senior', created.id)} />
       </Screen>
     );
   }
   return (
-    <Screen>
+    <Screen
+      footer={
+        <>
+          <BigButton label="Create" onPress={create} disabled={!form.name.trim()} />
+          <BigButton label="Back" kind="secondary" onPress={() => { setError(''); setStep('choose'); }} />
+        </>
+      }
+    >
       <Title>About them</Title>
-      <Field label="What you call them (e.g. Mom, Grandpa Joe)" value={form.name} onChangeText={set('name')} />
-      <Field label="Their date of birth (YYYY-MM-DD)" value={form.birth_date} onChangeText={set('birth_date')} placeholder="1944-03-14" />
-      <Field label="Where they'll usually be when checking in" value={form.place} onChangeText={set('place')} />
-      <Field label="Their town or city" value={form.city} onChangeText={set('city')} />
-      <Field label="Check-in time (24-hour)" value={form.checkin_time} onChangeText={set('checkin_time')} />
-      <Field label="Your first name" value={form.family_name} onChangeText={set('family_name')} />
-      <Field label="Your mobile number, for missed check-in texts" value={form.family_phone} onChangeText={set('family_phone')} keyboardType="phone-pad" />
+      <Card>
+        <Field label="What you call them (e.g. Mom, Grandpa Joe)" value={form.name} onChangeText={set('name')} />
+        <Field label="Their date of birth (year-month-day)" value={form.birth_date} onChangeText={set('birth_date')} placeholder="1944-03-14" />
+        <Field label="Their town or city" value={form.city} onChangeText={set('city')} />
+        <Field label="Where they'll usually be when checking in" value={form.place} onChangeText={set('place')} />
+        <Pick label="Daily reminder" options={TIMES} value={form.checkin_time} onChange={set('checkin_time')} />
+      </Card>
+      <Section>About you</Section>
+      <Card>
+        <Field label="Your first name" value={form.family_name} onChangeText={set('family_name')} />
+        <Field label="Your mobile number, for missed check-in texts" value={form.family_phone} onChangeText={set('family_phone')} keyboardType="phone-pad" />
+      </Card>
       <Body muted>
         Before starting, make sure they agree to daily check-ins and know their answers are recorded and shared
         with you.
       </Body>
       {!!error && <Body>{error}</Body>}
-      <BigButton label="Create" onPress={create} disabled={!form.name.trim()} />
-      <BigButton label="Back" kind="secondary" onPress={() => setStep('choose')} />
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  brand: { fontSize: type.body, fontWeight: '800', color: colors.primary, marginBottom: space.xs },
+  codeBox: { backgroundColor: colors.primarySoft, borderRadius: radius.l, borderWidth: 3, borderColor: colors.primary, paddingVertical: space.l, marginVertical: space.m, alignItems: 'center' },
+  code: { fontSize: type.huge, fontWeight: '800', letterSpacing: 2, color: colors.primary },
+});
