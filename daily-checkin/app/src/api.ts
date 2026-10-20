@@ -52,6 +52,8 @@ export type DayRow = {
 
 export type Alert = { date: string; kind: string; sent_at: string; delivered: number; message: string; was_real: number | null };
 
+export type AnswerCheck = { ask_again: boolean; noisy: boolean };
+
 // One answer: a recording (phone) or typed text (web demo, or no mic).
 export type Answer = { exerciseId: string; audioUri?: string; transcript?: string };
 
@@ -113,17 +115,19 @@ export const api = {
   },
 
   // Whether one recorded answer couldn't be made out, so the question
-  // should be asked again. Any failure or a slow server means "no".
-  async shouldAskAgain(id: string, exerciseId: string, audioUri: string, timeoutMs = 10000): Promise<boolean> {
+  // should be asked again, and whether a TV seemed to be on behind it.
+  // Any failure or a slow server means "no" to both.
+  async checkAnswer(id: string, exerciseId: string, audioUri: string, timeoutMs = 10000): Promise<AnswerCheck> {
     const form = new FormData();
     form.append('exercise_id', exerciseId);
     await appendAudio(form, 'audio', audioUri, exerciseId);
-    const check = call<{ ask_again: boolean }>(`/people/${id}/answers/check`, { method: 'POST', body: form });
-    const late = new Promise<{ ask_again: boolean }>((resolve) => setTimeout(() => resolve({ ask_again: false }), timeoutMs));
+    const fine: AnswerCheck = { ask_again: false, noisy: false };
+    const check = call<AnswerCheck>(`/people/${id}/answers/check`, { method: 'POST', body: form });
+    const late = new Promise<AnswerCheck>((resolve) => setTimeout(() => resolve(fine), timeoutMs));
     try {
-      return (await Promise.race([check, late])).ask_again;
+      return await Promise.race([check, late]);
     } catch {
-      return false;
+      return fine;
     }
   },
 };

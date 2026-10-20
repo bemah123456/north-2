@@ -130,8 +130,8 @@ def test_check_answer_asks_again_once_and_reuses_the_transcript(client, monkeypa
                            data={"exercise_id": ex_id, "date_override": "2026-10-19"},
                            files={"audio": ("a.m4a", clip, "audio/m4a")}).json()
 
-    assert check(ids["age"], b"age") == {"ask_again": True, "reason": "misheard"}
-    assert check(ids["year"], b"year") == {"ask_again": False, "reason": None}
+    assert check(ids["age"], b"age") == {"ask_again": True, "reason": "misheard", "noisy": False}
+    assert check(ids["year"], b"year") == {"ask_again": False, "reason": None, "noisy": False}
 
     answers = typed(plan)
     r = client.post(f"/people/{p['id']}/checkins",
