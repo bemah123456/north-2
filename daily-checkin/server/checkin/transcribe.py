@@ -93,13 +93,37 @@ def has_speech(audio: bytes) -> bool | None:
     return check["heard_speech"] if check else None
 
 
+def background_flicker(x, sr: int = SR) -> float:
+    """Mean frame-to-frame loudness change (dB) across the quietest 40% of
+    30 ms frames: the gaps around the person's words. A TV or radio fills
+    the gaps with speech, which flickers (about 5 to 9 dB); a fan, hiss or
+    a quiet room is steady (under about 4 dB). From the project's speech
+    comparison (research/cloud-4at-asr), tuned on synthetic audio only."""
+    import numpy as np
+
+    frame = int(0.03 * sr)
+    n = len(x) // frame
+    if n < 10:
+        return 0.0
+    rms = np.sqrt((x[: n * frame].reshape(n, frame) ** 2).mean(axis=1))
+    db = 20 * np.log10(np.maximum(rms, 1e-4))
+    quiet = db[db <= np.percentile(db, 40)]
+    return float(np.abs(np.diff(quiet)).mean()) if len(quiet) > 2 else 0.0
+
+
+# Above this, the gaps probably hold someone else talking. It flagged 96% of
+# clips with a TV 20 dB below the speaker, no steady fan noise, and about
+# 5% of quiet clips.
+TV_FLICKER_DB = 4.4
+
+
 def clip_check(audio: bytes) -> dict | None:
-    """noisy: the quiet stretches between words sit within about 26 dB of
-    the loudest speech, as with a TV on in the room, where every speech
-    model we tested mishears healthy answers far more often.
-    heard_speech: some 30 ms frame stands well above the quietest ones (by
-    a smaller margin when the room is noisy). None when the clip can't be
-    decoded here."""
+    """heard_speech: some 30 ms frame stands well above the quietest ones (by
+    a smaller margin when there's background sound, since the gaps aren't
+    quiet).
+    noisy: another voice, such as a TV, seems to be talking in the gaps;
+    with one on, every speech model we tested mishears healthy answers far
+    more often. None when the clip can't be decoded here."""
     import numpy as np
 
     try:
@@ -111,9 +135,9 @@ def clip_check(audio: bytes) -> dict | None:
     if n < 3:
         return {"heard_speech": False, "noisy": False}
     e = np.sqrt((x[: n * frame].reshape(n, frame) ** 2).mean(axis=1)) + 1e-6
-    quiet = np.percentile(e, 20)
-    noisy = bool(quiet > 0.003 and np.percentile(e, 95) / quiet < 20)
-    heard = bool(e.max() > 0.01 and e.max() / np.percentile(e, 10) > (3 if noisy else 10))
+    floor = np.percentile(e, 10)
+    heard = bool(e.max() > 0.01 and e.max() / floor > (3 if floor > 0.003 else 10))
+    noisy = background_flicker(x) > TV_FLICKER_DB
     return {"heard_speech": heard, "noisy": noisy}
 
 
