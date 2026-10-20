@@ -1,0 +1,76 @@
+--- a/server/checkin/transcribe.py
++++ b/server/checkin/transcribe.py
+@@ -102,12 +102,35 @@
+     return _local_pipeline
+ 
+ 
++def _decode_16k(audio: bytes):
++    """Decode with ffmpeg through a temporary file. The pipeline's own
++    decoder reads from a pipe, which fails on an m4a whose index sits at
++    the end of the file (how Android, and often iOS, write recordings)."""
++    import subprocess
++    import tempfile
++
++    import numpy as np
++
++    with tempfile.NamedTemporaryFile(suffix=".audio") as f:
++        f.write(audio)
++        f.flush()
++        p = subprocess.run(
++            ["ffmpeg", "-loglevel", "error", "-i", f.name, "-f", "f32le", "-ac", "1", "-ar", "16000", "pipe:1"],
++            capture_output=True,
++        )
++    if p.returncode != 0:
++        raise TranscriptionUnavailable("Could not decode the recording: " + p.stderr.decode(errors="replace")[-200:])
++    return np.frombuffer(p.stdout, dtype=np.float32)
++
++
+ def _local_whisper(audio: bytes) -> tuple[str, list[Word]]:
+-    # Bytes are decoded with ffmpeg, so phone m4a and browser webm both work.
+     model = os.environ.get("LOCAL_WHISPER_MODEL", "openai/whisper-small")
+     # English-only checkpoints (".en") reject a language setting.
+     extra = {} if model.endswith(".en") else {"generate_kwargs": {"language": "english", "task": "transcribe"}}
+-    out = _load_local()(audio, return_timestamps="word", **extra)
++    samples = _decode_16k(audio)
++    if len(samples) < 1600:  # under 0.1 s: nothing to transcribe
++        return "", []
++    out = _load_local()({"raw": samples, "sampling_rate": 16000}, return_timestamps="word", **extra)
+     words = []
+     for chunk in out.get("chunks", []):
+         start, end = chunk["timestamp"]
+--- a/server/tests/test_transcribe.py
++++ b/server/tests/test_transcribe.py
+@@ -1,3 +1,9 @@
++import shutil
++import subprocess
++
++import numpy as np
++import pytest
++
+ from checkin import transcribe
+ 
+ 
+@@ -14,6 +20,7 @@
+ 
+     monkeypatch.setenv("STT_PROVIDER", "local")
+     monkeypatch.setattr(transcribe, "_local_pipeline", fake_pipeline)
++    monkeypatch.setattr(transcribe, "_decode_16k", lambda audio: np.zeros(16000, dtype=np.float32))
+     text, words = transcribe.transcribe(b"audio", "audio/m4a")
+     assert text == "I'm at home."
+     assert [w.text for w in words] == ["I'm", "at", "home."]
+@@ -24,3 +31,15 @@
+ def test_no_provider(monkeypatch):
+     monkeypatch.delenv("STT_PROVIDER", raising=False)
+     assert transcribe.provider() is None
++
++
++@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="needs ffmpeg")
++def test_decodes_m4a_with_index_at_end(tmp_path):
++    # Android and iOS recorders write the m4a index after the audio, which
++    # ffmpeg can't read from a pipe.
++    wav, m4a = tmp_path / "a.wav", tmp_path / "a.m4a"
++    subprocess.run(["ffmpeg", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
++                    "-ar", "16000", str(wav)], check=True)
++    subprocess.run(["ffmpeg", "-loglevel", "error", "-i", str(wav), "-c:a", "aac", str(m4a)], check=True)
++    samples = transcribe._decode_16k(m4a.read_bytes())
++    assert abs(len(samples) - 16000) < 2000
