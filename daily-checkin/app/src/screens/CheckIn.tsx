@@ -1,6 +1,8 @@
 // The senior's daily check-in: the app reads each question aloud, shows it
 // in large type, and listens. It moves on by itself after a few seconds of
-// quiet, or when they tap "I'm done".
+// quiet, or when they tap "I'm done". Before the first question it listens
+// to the room for a few seconds and asks them to turn the TV down if it's
+// loud, because background talk makes healthy answers get misheard.
 
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
@@ -20,8 +22,12 @@ import { BigButton, Body, Field, Screen, Title } from '../ui';
 const SPEAKING_DB = -40; // louder than this counts as talking
 const QUIET_TO_FINISH_MS = 4000;
 const SPEECH_RATE = 0.85;
+// Typical room level above which we ask them to make it quieter. A guess
+// from metering scales (quiet rooms read about -55 dB); tune on real phones.
+const NOISY_ROOM_DB = -45;
+const ROOM_CHECK_MS = 3000;
 
-type Phase = 'loading' | 'speaking' | 'listening' | 'typing' | 'sending' | 'done' | 'error';
+type Phase = 'loading' | 'roomcheck' | 'noisy' | 'speaking' | 'listening' | 'typing' | 'sending' | 'done' | 'error';
 
 export default function CheckIn({ personId, typedMode, onFinished }: {
   personId: string;
@@ -38,6 +44,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
   const startedAt = useRef(Date.now());
   const [checkinId, setCheckinId] = useState('');
   const [rated, setRated] = useState(false);
+  const [started, setStarted] = useState(false);
 
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
   const state = useAudioRecorderState(recorder, 250);
@@ -61,6 +68,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
           else await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
         }
         setExercises(plan.exercises);
+        if (useTyping) setStarted(true);
       } catch (e) {
         setError(String((e as Error).message));
         setPhase('error');
@@ -72,8 +80,37 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
   }, [personId]);
 
   useEffect(() => {
-    if (exercises.length) ask(exercises[index]);
-  }, [exercises, index]);
+    if (!exercises.length) return;
+    if (started) ask(exercises[index]);
+    else if (useTyping) setStarted(true);
+    else checkRoom();
+  }, [exercises, index, started]);
+
+  // A few seconds of the room's normal level, before anyone speaks.
+  async function checkRoom() {
+    setPhase('roomcheck');
+    try {
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      const levels: number[] = [];
+      const t0 = Date.now();
+      while (Date.now() - t0 < ROOM_CHECK_MS) {
+        await new Promise((r) => setTimeout(r, 250));
+        if (level.current !== undefined) levels.push(level.current);
+      }
+      await recorder.stop();
+      levels.sort((a, b) => a - b);
+      const typical = levels.length ? levels[Math.floor(levels.length / 2)] : -160;
+      if (typical > NOISY_ROOM_DB) {
+        setPhase('noisy');
+        Speech.speak("It's a bit noisy. Could you turn down the TV, or go somewhere quieter?", { rate: SPEECH_RATE });
+        return;
+      }
+    } catch {
+      // A failed check never blocks the check-in.
+    }
+    setStarted(true);
+  }
 
   // Move on after a stretch of quiet once they've said something. This polls
   // rather than reacting to level changes: steady silence reports the same
@@ -166,6 +203,26 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
     }
   }
 
+  if (phase === 'roomcheck') {
+    return (
+      <Screen>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Body>Getting ready to listen…</Body>
+        </View>
+      </Screen>
+    );
+  }
+  if (phase === 'noisy') {
+    return (
+      <Screen>
+        <Title>It's a bit noisy</Title>
+        <Body>Could you turn down the TV or radio, or go somewhere quieter? Background voices make it hard to hear your answers.</Body>
+        <BigButton label="I've made it quieter" onPress={checkRoom} />
+        <BigButton label="Start anyway" kind="secondary" onPress={() => setStarted(true)} />
+      </Screen>
+    );
+  }
   if (phase === 'loading' || phase === 'sending') {
     return (
       <Screen>

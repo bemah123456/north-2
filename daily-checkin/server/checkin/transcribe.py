@@ -77,8 +77,18 @@ def _decode_16k(audio: bytes):
 
 
 def has_speech(audio: bytes) -> bool | None:
-    """Whether a clip has speech in it: any 30 ms frame well above the
-    quietest ones. None when the clip can't be decoded here."""
+    """Whether a clip has speech in it. None when it can't be decoded here."""
+    check = clip_check(audio)
+    return check["heard_speech"] if check else None
+
+
+def clip_check(audio: bytes) -> dict | None:
+    """noisy: the quiet stretches between words sit within about 26 dB of
+    the loudest speech, as with a TV on in the room, where every speech
+    model we tested mishears healthy answers far more often.
+    heard_speech: some 30 ms frame stands well above the quietest ones (by
+    a smaller margin when the room is noisy). None when the clip can't be
+    decoded here."""
     import numpy as np
 
     try:
@@ -88,9 +98,12 @@ def has_speech(audio: bytes) -> bool | None:
     frame = int(0.03 * SR)
     n = len(x) // frame
     if n < 3:
-        return False
+        return {"heard_speech": False, "noisy": False}
     e = np.sqrt((x[: n * frame].reshape(n, frame) ** 2).mean(axis=1)) + 1e-6
-    return bool(e.max() > 0.01 and e.max() / np.percentile(e, 10) > 10)
+    quiet = np.percentile(e, 20)
+    noisy = bool(quiet > 0.003 and np.percentile(e, 95) / quiet < 20)
+    heard = bool(e.max() > 0.01 and e.max() / np.percentile(e, 10) > (3 if noisy else 10))
+    return {"heard_speech": heard, "noisy": noisy}
 
 
 def _deepgram(audio: bytes, content_type: str) -> tuple[str, list[Word]]:

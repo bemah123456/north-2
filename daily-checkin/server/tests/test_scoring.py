@@ -127,3 +127,18 @@ def test_unheard_attention_is_not_a_failure():
     given[att.id] = {"transcript": "", "words": [], "heard_speech": True}
     r = score_checkin(PERSON, DAY, build_checkin("p1", DAY), given, history())
     assert r["parts"]["attention"] == 0 and r["needs_review"] == 1
+
+
+def test_noisy_checkin_is_flagged_but_scored_the_same():
+    given = answers(DAY)
+    quiet = score_checkin(PERSON, DAY, build_checkin("p1", DAY), given, history())
+    for v in given.values():
+        v["noisy"] = True
+    noisy = score_checkin(PERSON, DAY, build_checkin("p1", DAY), given, history())
+    assert noisy["noisy"] and not quiet["noisy"]
+    assert noisy["total"] == quiet["total"]
+    assert not any("noise" in r for r in noisy["reasons"])  # a clear day needs no caveat
+    age = next(ex.id for ex in build_checkin("p1", DAY) if ex.kind == "age")
+    given[age]["transcript"] = "I'm sixty"
+    worse = score_checkin(PERSON, DAY, build_checkin("p1", DAY), given, history())
+    assert worse["total"] and any("background noise" in r for r in worse["reasons"])

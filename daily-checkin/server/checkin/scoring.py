@@ -53,9 +53,10 @@ def score_checkin(
     family_says_different: bool | None = None,
 ) -> dict:
     """given: exercise id -> {"transcript": str, "words": list[Word] | None,
-    "heard_speech": bool?}. heard_speech is set for recorded answers: when
-    the clip has speech but the transcript can't be an answer, the item is
-    left for a person to check instead of counted as a mistake.
+    "heard_speech": bool?, "noisy": bool?}. The last two are set for
+    recorded answers. When a clip has speech but the transcript can't be an
+    answer, the item is left for a person to check instead of counted as a
+    mistake. Most clips noisy marks the check-in noisy.
     history: feature dicts from this person's earlier normal check-ins."""
     items = []
     mistakes = 0
@@ -144,6 +145,11 @@ def score_checkin(
     attention_score = (attention["score"] or 0) if attention else 2
     total = alertness_score + amt4_score + attention_score + change_score
     band = "possible_delirium" if total >= 4 else "possible_impairment" if total >= 1 else "unlikely"
+    # Background noise (a TV, mostly) makes healthy answers look wrong. It
+    # doesn't change the score; the family is told so they can weigh it.
+    noisy = sum(1 for g in given.values() if g.get("noisy")) * 2 > len(given)
+    if noisy and total:
+        reasons.append("lots of background noise, so some answers may have been misheard")
 
     return {
         "date": day.isoformat(),
@@ -158,6 +164,7 @@ def score_checkin(
             "acute_change": change_score,
         },
         "needs_review": unsure,
+        "noisy": noisy,
         "voice": {
             "measured": feats is not None,
             "baseline_days": baseline["n_days"] if baseline else 0,

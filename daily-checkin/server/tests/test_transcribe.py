@@ -61,3 +61,32 @@ def test_parakeet_tokens_join_into_words():
                                           [0.5, 0.6, 0.9, 1.1, 1.2, 1.3], [0.1, 0.1, 0.1, 0.1, 0.1, 0.05])
     assert [w.text for w in words] == ["I'm", "at", "home."]
     assert words[2].start == 1.1 and words[2].end == pytest.approx(1.35)
+
+
+def _wav(x: np.ndarray) -> bytes:
+    import io
+    import wave
+
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(16000)
+        w.writeframes((np.clip(x, -1, 1) * 32767).astype(np.int16).tobytes())
+    return buf.getvalue()
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="needs ffmpeg")
+@pytest.mark.parametrize("tv_db, noisy", [(None, False), (-30, False), (-20, True), (-10, True)])
+def test_clip_check_spots_a_tv(tv_db, noisy):
+    # Syllable-like bursts with gaps, plus a steady talking-TV-like noise
+    # at tv_db below the speaker.
+    rng = np.random.default_rng(0)
+    t = np.arange(16000 * 4) / 16000
+    on = (np.sin(2 * np.pi * 3 * t) > 0.2) & (t % 1.2 < 0.8)
+    x = 0.3 * on * np.sin(2 * np.pi * 180 * t)
+    if tv_db is not None:
+        tv = rng.normal(size=len(t)) * (0.6 + 0.4 * np.abs(np.sin(2 * np.pi * 2.3 * t)))
+        x = x + tv / tv.std() * x[on].std() * 10 ** (tv_db / 20)
+    check = transcribe.clip_check(_wav(x + rng.normal(size=len(t)) * 1e-4))
+    assert check == {"heard_speech": True, "noisy": noisy}
