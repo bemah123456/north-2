@@ -21,7 +21,7 @@ BASELINE_WINDOW = 14
 # every tiny wobble look dramatic.
 STD_FLOOR = {
     "latency_s": 0.6,
-    "words_per_min": 12.0,
+    "words_per_min": 20.0,  # real older speakers vary by about 21 a minute day to day
     "pauses_per_min": 3.0,
     "mean_pause_s": 0.25,
     "filler_rate": 0.03,
@@ -47,12 +47,19 @@ def build_baseline(history: list[dict]) -> dict | None:
     return out
 
 
+# One "um" or one repeated word in a short check-in is a big jump in rate.
+# Without a cap, single words caused most false alarms on healthy days
+# (6.7% of them); capped, it's 3%, and hesitant voices are still caught 89%
+# of the time (research/cloud-4at-asr, synthetic check-ins).
+Z_CAP = {"filler_rate": 1.5, "repeat_rate": 1.5}
+
+
 def change_scores(today: dict, baseline: dict) -> dict[str, float]:
     """Signed z-scores, flipped so positive always means "worse than usual"."""
     z = {}
     for name, direction in FEATURE_DIRECTIONS.items():
         b = baseline["features"][name]
-        z[name] = direction * (today[name] - b["mean"]) / b["std"]
+        z[name] = min(direction * (today[name] - b["mean"]) / b["std"], Z_CAP.get(name, float("inf")))
     return z
 
 
