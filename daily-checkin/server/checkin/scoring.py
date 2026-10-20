@@ -44,6 +44,22 @@ def _facts(ex: Exercise, person: dict, day: date) -> str:
     }[ex.kind]
 
 
+def retry_reason(ex: Exercise, g: dict) -> str | None:
+    """Why a recorded answer can't be scored as heard, or None. "misheard":
+    speech was heard but the transcript can't be an answer. "one_month_dropped":
+    months backwards that would pass with exactly one month missing, the
+    usual speech-to-text slip. The app asks the question again once; if it
+    still happens, the item goes to a person instead of counting as wrong."""
+    if not g.get("heard_speech"):
+        return None
+    text = g.get("transcript", "") or ""
+    if A.misheard(ex.kind, text):
+        return "misheard"
+    if ex.kind == "months_backwards" and A.score_attention(ex.kind, text)["score"] and A.one_month_dropped(text):
+        return "one_month_dropped"
+    return None
+
+
 def score_checkin(
     person: dict,
     day: date,
@@ -69,9 +85,12 @@ def score_checkin(
         text = g.get("transcript", "") or ""
         item = {"exercise_id": ex.id, "part": ex.part, "kind": ex.kind,
                 "prompt": ex.prompt, "transcript": text}
-        misheard = g.get("heard_speech") is True and A.misheard(ex.kind, text)
+        retry = retry_reason(ex, g)
+        misheard = retry is not None
         if misheard:
             item["misheard"] = True
+        if retry == "one_month_dropped":
+            item["one_month_dropped"] = True
         if ex.part == "orientation":
             ok, by = (None, "rules") if misheard else _check_orientation(ex, text, person, day)
             if ok is None:
@@ -85,15 +104,11 @@ def score_checkin(
             elif ok is None:
                 unsure += 1
         elif ex.part == "attention":
-            attention = None if misheard else A.score_attention(ex.kind, text)
-            if attention and attention["score"] and ex.kind == "months_backwards" \
-                    and g.get("heard_speech") and A.one_month_dropped(text):
-                item["one_month_dropped"] = True
-                misheard = True
             if misheard:
                 attention = {"correct_items": 0, "needed": None, "out_of": None, "score": None}
-                item["misheard"] = True
                 unsure += 1
+            else:
+                attention = A.score_attention(ex.kind, text)
             item.update(attention)
         items.append(item)
 

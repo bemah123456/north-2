@@ -6,6 +6,7 @@ Run locally:  uvicorn checkin.api:app --reload --port 8000
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import json
 import os
@@ -22,7 +23,7 @@ from .baseline import load_model
 from .exercises import build_checkin
 from .features import FEATURE_DIRECTIONS
 from .missed import day_statuses, due_actions, is_late, local_now
-from .scoring import HEADLINES, score_checkin, words_from_json
+from .scoring import HEADLINES, retry_reason, score_checkin, words_from_json
 
 DEMO_MODE = os.environ.get("DEMO_MODE") == "1"
 
@@ -147,6 +148,44 @@ def today_plan(pid: str, date_override: str | None = None) -> dict:
     }
 
 
+# Recent transcriptions by clip, so an answer checked during the check-in
+# isn't transcribed a second time when the whole check-in arrives.
+_heard: dict[str, dict] = {}
+
+
+def _hear(ex, data: bytes, content_type: str | None) -> dict:
+    key = hashlib.sha256(ex.kind.encode() + data).hexdigest()
+    if key not in _heard:
+        try:
+            expect = transcribe.MONTHS_BACKWARDS if ex.kind == "months_backwards" else None
+            text, words = transcribe.transcribe(data, content_type, expect)
+        except transcribe.TranscriptionUnavailable:
+            raise HTTPException(503, "Speech-to-text isn't set up on the server yet; "
+                                     "set STT_PROVIDER or use typed answers")
+        heard = {"transcript": text, "words": words}
+        heard.update(transcribe.clip_check(data) or {})
+        if len(_heard) >= 200:
+            _heard.pop(next(iter(_heard)))
+        _heard[key] = heard
+    return dict(_heard[key])
+
+
+@app.post("/people/{pid}/answers/check", dependencies=[Depends(auth)])
+async def check_answer(pid: str, request: Request) -> dict:
+    """Multipart form: exercise_id and audio (one recorded answer). Says
+    whether the app should ask the question again because the answer
+    couldn't be made out. Nothing is saved."""
+    p = person_or_404(pid)
+    form = await request.form()
+    day, _ = _local_day(p, form.get("date_override"))
+    ex = next((e for e in build_checkin(pid, day) if e.id == form.get("exercise_id")), None)
+    f = form.get("audio")
+    if ex is None or f is None or isinstance(f, str):
+        raise HTTPException(400, "Send exercise_id and audio")
+    reason = retry_reason(ex, _hear(ex, await f.read(), f.content_type))
+    return {"ask_again": reason is not None, "reason": reason}
+
+
 @app.post("/people/{pid}/checkins", dependencies=[Depends(auth)])
 async def submit_checkin(pid: str, request: Request) -> dict:
     """Multipart form. Field `answers` is JSON: a list of
@@ -172,16 +211,7 @@ async def submit_checkin(pid: str, request: Request) -> dict:
             continue
         data = await f.read()
         audio[ex.id] = (data, f.content_type or "audio/m4a", (f.filename or "a.m4a").rsplit(".", 1)[-1])
-        try:
-            expect = transcribe.MONTHS_BACKWARDS if ex.kind == "months_backwards" else None
-            text, words = transcribe.transcribe(data, f.content_type, expect)
-        except transcribe.TranscriptionUnavailable:
-            raise HTTPException(503, "Speech-to-text isn't set up on the server yet; "
-                                     "set STT_PROVIDER or use typed answers")
-        given[ex.id] = {"transcript": text, "words": words}
-        check = transcribe.clip_check(data)
-        if check:
-            given[ex.id].update(check)
+        given[ex.id] = _hear(ex, data, f.content_type)
 
     previous = store.checkins(pid)
     history = [c["features"] for c in previous
