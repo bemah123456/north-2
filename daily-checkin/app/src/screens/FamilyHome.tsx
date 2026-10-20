@@ -157,6 +157,9 @@ function Detail({ result, onReport }: { result: Result; onReport: (different: bo
             "{it.transcript || '(no answer)'}"
             {it.correct === true ? '  ✓' : it.correct === false ? '  ✗' : ''}
             {it.out_of ? `  (${it.correct_items} of ${it.out_of})` : ''}
+            {it.one_month_dropped
+              ? '  (one month may have been misheard)'
+              : it.misheard ? "  (couldn't make this out)" : ''}
           </Text>
         </View>
       ))}

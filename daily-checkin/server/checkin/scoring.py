@@ -52,7 +52,11 @@ def score_checkin(
     history: list[dict],
     family_says_different: bool | None = None,
 ) -> dict:
-    """given: exercise id -> {"transcript": str, "words": list[Word] | None}.
+    """given: exercise id -> {"transcript": str, "words": list[Word] | None,
+    "heard_speech": bool?, "noisy": bool?}. The last two are set for
+    recorded answers. When a clip has speech but the transcript can't be an
+    answer, the item is left for a person to check instead of counted as a
+    mistake. Three or more noisy clips mark the check-in noisy.
     history: feature dicts from this person's earlier normal check-ins."""
     items = []
     mistakes = 0
@@ -65,8 +69,11 @@ def score_checkin(
         text = g.get("transcript", "") or ""
         item = {"exercise_id": ex.id, "part": ex.part, "kind": ex.kind,
                 "prompt": ex.prompt, "transcript": text}
+        misheard = g.get("heard_speech") is True and A.misheard(ex.kind, text)
+        if misheard:
+            item["misheard"] = True
         if ex.part == "orientation":
-            ok, by = _check_orientation(ex, text, person, day)
+            ok, by = (None, "rules") if misheard else _check_orientation(ex, text, person, day)
             if ok is None:
                 verdict = judge.judge_answer(ex.prompt, text, _facts(ex, person, day))
                 if verdict:
@@ -78,7 +85,15 @@ def score_checkin(
             elif ok is None:
                 unsure += 1
         elif ex.part == "attention":
-            attention = A.score_attention(ex.kind, text)
+            attention = None if misheard else A.score_attention(ex.kind, text)
+            if attention and attention["score"] and ex.kind == "months_backwards" \
+                    and g.get("heard_speech") and A.one_month_dropped(text):
+                item["one_month_dropped"] = True
+                misheard = True
+            if misheard:
+                attention = {"correct_items": 0, "needed": None, "out_of": None, "score": None}
+                item["misheard"] = True
+                unsure += 1
             item.update(attention)
         items.append(item)
 
@@ -106,7 +121,8 @@ def score_checkin(
     # 1. Alertness. The 4AT scores this by watching; here we use clear
     # signs only: no reply to most questions, or very slow and very brief
     # against their own normal.
-    answered = sum(1 for e in exercises if (given.get(e.id, {}).get("transcript") or "").strip())
+    answered = sum(1 for e in exercises
+                   if (given.get(e.id, {}).get("transcript") or "").strip() or given.get(e.id, {}).get("heard_speech"))
     drowsy = answered < len(exercises) / 2
     if not drowsy and z is not None:
         drowsy = z["latency_s"] >= 3 and z["greeting_words"] >= 2
@@ -129,8 +145,16 @@ def score_checkin(
         elif prob >= CHANGE_WATCH:
             reasons.extend(voice_reasons)
 
-    total = alertness_score + amt4_score + (attention["score"] if attention else 2) + change_score
+    # Attention we couldn't hear counts 0 and waits for a person to check.
+    attention_score = (attention["score"] or 0) if attention else 2
+    total = alertness_score + amt4_score + attention_score + change_score
     band = "possible_delirium" if total >= 4 else "possible_impairment" if total >= 1 else "unlikely"
+    # Background noise (a TV, mostly) makes healthy answers look wrong. It
+    # doesn't change the score; the family is told so they can weigh it.
+    # Like the research's per-check-in rule: 3 or more noisy answers.
+    noisy = sum(1 for g in given.values() if g.get("noisy")) >= 3
+    if noisy and total:
+        reasons.append("lots of background noise, so some answers may have been misheard")
 
     return {
         "date": day.isoformat(),
@@ -141,10 +165,11 @@ def score_checkin(
         "parts": {
             "alertness": alertness_score,
             "amt4": amt4_score,
-            "attention": attention["score"] if attention else 2,
+            "attention": attention_score,
             "acute_change": change_score,
         },
         "needs_review": unsure,
+        "noisy": noisy,
         "voice": {
             "measured": feats is not None,
             "baseline_days": baseline["n_days"] if baseline else 0,

@@ -173,15 +173,20 @@ async def submit_checkin(pid: str, request: Request) -> dict:
         data = await f.read()
         audio[ex.id] = (data, f.content_type or "audio/m4a", (f.filename or "a.m4a").rsplit(".", 1)[-1])
         try:
-            text, words = transcribe.transcribe(data, f.content_type)
+            expect = transcribe.MONTHS_BACKWARDS if ex.kind == "months_backwards" else None
+            text, words = transcribe.transcribe(data, f.content_type, expect)
         except transcribe.TranscriptionUnavailable:
             raise HTTPException(503, "Speech-to-text isn't set up on the server yet; "
                                      "set STT_PROVIDER or use typed answers")
         given[ex.id] = {"transcript": text, "words": words}
+        check = transcribe.clip_check(data)
+        if check:
+            given[ex.id].update(check)
 
     previous = store.checkins(pid)
     history = [c["features"] for c in previous
-               if c["features"] and c["result"]["band"] != "possible_delirium"]
+               if c["features"] and c["result"]["band"] != "possible_delirium"
+               and not c["result"].get("noisy")]
     family = form.get("family_says_different")
     family_flag = None if family in (None, "") else family in ("1", "true", "yes")
     result = score_checkin(p, day, exercises, given, history, family_flag)
