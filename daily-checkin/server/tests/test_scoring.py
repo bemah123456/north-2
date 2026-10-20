@@ -60,7 +60,7 @@ def test_confused_slow_day_says_call_doctor():
            "months_backwards": "December November um October", "days_backwards": "Sunday Saturday",
            "countdown_20": "twenty nineteen", "greeting": "um tired"}
     r = score_checkin(PERSON, DAY, build_checkin("p1", DAY),
-                      answers(DAY, bad, latency=5.0, words_per_min=70, pause_every=2, pause=2.0), history())
+                      answers(DAY, bad, latency=5.0, words_per_min=70, pause_every=2, pause=2.0), history(5))
     assert r["band"] == "possible_delirium"
     assert r["headline"] == "Call their doctor today"
     assert r["parts"]["amt4"] == 2
@@ -155,3 +155,24 @@ def test_one_dropped_month_waits_for_a_person():
     assert typed["parts"]["attention"] == 1  # a typed answer is taken as given
     assert heard["parts"]["attention"] == 0 and heard["needs_review"] == 1
     assert next(i for i in heard["items"] if i["kind"] == "months_backwards")["one_month_dropped"]
+
+
+SLOW = dict(latency=5.0, words_per_min=70, pause_every=2, pause=2.0)
+
+
+def test_voice_alone_waits_for_five_usual_days():
+    four = score_checkin(PERSON, DAY, build_checkin("p1", DAY), answers(DAY, **SLOW), history(4))
+    five = score_checkin(PERSON, DAY, build_checkin("p1", DAY), answers(DAY, **SLOW), history(5))
+    assert four["voice"]["change_probability"] >= 0.7 and not four["voice"]["counts"]
+    assert four["parts"]["acute_change"] == 0
+    assert any("pausing" in x or "slower" in x for x in four["reasons"])  # still shown
+    assert five["voice"]["counts"] and five["parts"]["acute_change"] == 4
+
+
+def test_noisy_room_voice_does_not_score():
+    given = answers(DAY, **SLOW)
+    for v in given.values():
+        v["noisy"] = True
+    r = score_checkin(PERSON, DAY, build_checkin("p1", DAY), given, history(5))
+    assert r["noisy"] and not r["voice"]["counts"]
+    assert r["parts"]["acute_change"] == 0

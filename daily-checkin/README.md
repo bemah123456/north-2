@@ -17,7 +17,7 @@ A phone app where an older adult does a 2-minute spoken check-in each day, based
 1. **Alertness:** no reply to most questions, or much slower and briefer than their usual, scores 4.
 2. **Orientation (AMT4):** age, date of birth, where they are, and the year. Asked every day in a different order and wording. 0 mistakes = 0, 1 = 1, 2+ = 2. Answers the rules can't settle (e.g. "in the kitchen") can go to Claude for a second opinion, or are flagged for a person to check. They are never counted as a mistake.
 3. **Attention:** months backwards (the 4AT's own task) every other day. On the other days it's days of the week backwards or counting down from 20, which are adaptations. Scored on the same 7-of-12 share.
-4. **Acute change:** scores 4 if the family says "they seem different today", or if the voice model says today is far from their own normal.
+4. **Acute change:** scores 4 if the family says "they seem different today", or if the voice model says today is far from their own normal. The voice alone only scores once there are 5 usual days to compare against, and never on a noisy check-in (a TV stretches the pauses it measures); before that it's listed as a reason but adds nothing.
 
 The total uses the 4AT bands: 4+ is "Call their doctor today", 1 to 3 is "Keep an eye on it", and 0 is "Looks like their usual self".
 

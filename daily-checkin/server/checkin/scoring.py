@@ -11,6 +11,9 @@ from .exercises import Exercise
 from .features import Word, checkin_features
 
 CHANGE_ALERT = 0.7  # model probability that scores the 4AT "acute change" item
+# On its own the voice only scores the change item once we know their normal
+# well. With 4 baseline days, ordinary healthy days hit the alert about 1 in 10.
+VOICE_ALERT_MIN_DAYS = 5
 CHANGE_WATCH = 0.4  # shown as a reason, not scored
 
 HEADLINES = {
@@ -152,9 +155,13 @@ def score_checkin(
     if family_says_different:
         change_score = 4
         reasons.insert(0, "family says they seem different today")
+    # A TV or chatter stretches the pauses the voice model measures, so on a
+    # noisy check-in the voice is shown but doesn't score.
+    noisy = sum(1 for g in given.values() if g.get("noisy")) >= 3
+    voice_counts = not noisy and baseline is not None and baseline["n_days"] >= VOICE_ALERT_MIN_DAYS
     if prob is not None and z is not None:
         voice_reasons = top_reasons(z)
-        if prob >= CHANGE_ALERT:
+        if prob >= CHANGE_ALERT and voice_counts:
             change_score = 4
             reasons.extend(voice_reasons or ["voice differs from their usual"])
         elif prob >= CHANGE_WATCH:
@@ -167,7 +174,6 @@ def score_checkin(
     # Background noise (a TV, mostly) makes healthy answers look wrong. It
     # doesn't change the score; the family is told so they can weigh it.
     # Like the research's per-check-in rule: 3 or more noisy answers.
-    noisy = sum(1 for g in given.values() if g.get("noisy")) >= 3
     if noisy and total:
         reasons.append("lots of background noise, so some answers may have been misheard")
 
@@ -190,6 +196,7 @@ def score_checkin(
             "baseline_days": baseline["n_days"] if baseline else 0,
             "change_probability": prob,
             "change_scores": z,
+            "counts": voice_counts,
         },
         "features": feats,
         "items": items,
