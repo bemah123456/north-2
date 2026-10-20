@@ -163,6 +163,64 @@ The change model (`model.json` in the app) was itself trained on synthetic
 data, so these numbers say more about the setup than about real people.
 Raw features per voice and day are in `results/voice_change.json`.
 
+## How many normal days the voice-change score needs
+
+The quiet-room test above found healthy days alarming 10% of the time
+against 4 normal days. To see whether more normal days fix that, two sets
+of days were scored with the app's own features and model:
+
+- **Real older speakers:** 20 Common Voice speakers aged 60+, 10 read
+  sentences each, one sentence standing for one day (CC0, prepared by the
+  PC session). Each day was also made "slowed + tremor" (20% slower, 6 Hz
+  tremor) and "hesitant" (1 s slower to start, a 0.7 s pause after every
+  third word, 10% slower).
+- **Synthetic check-ins:** the 12 voices above, 16 days each, every day a
+  random wording of the four orientation answers and one attention task.
+
+Each test compares one day with up to 20 random sets of N other normal days
+of the same person. Word timestamps come from Parakeet.
+[scripts/voice_baseline_study.py](scripts/voice_baseline_study.py)
+
+| Healthy days that alarmed | 2 days | 5 days | 9 days | 14 days |
+|---|---|---|---|---|
+| Synthetic check-ins, current app | 8.1% | 6.5% | 6.7% | 6.8% |
+| Synthetic check-ins, capped | 3.5% | 2.8% | 3.3% | 3.6% |
+| Real speakers, current app | 0.2% | 0.1% | 0.0% | |
+
+| With 5 normal days | Synthetic healthy | Synthetic slowed + tremor | Real healthy | Real slowed + tremor | Real hesitant |
+|---|---|---|---|---|---|
+| Current app | 6.5% | 12.5% | 0.1% | 2.5% | 92.6% |
+| Capped | 2.8% | 7.4% | 0.0% | 2.0% | 89.2% |
+| Learned from other speakers | 2.9% | 5.3% | 3.5% | 34.1% | 100% |
+
+What this shows:
+
+1. **More normal days don't fix the false alarms.** From 2 to 14 days the
+   synthetic rate stays between 6.5% and 8%. The alarms come from single
+   words: on nearly half of them the biggest change was a single "um",
+   and most of the rest were one repeated word or one longer pause.
+2. **Capping one-off words halves them.** If "um" and repeated words can
+   count at most 1.5 spreads, and speaking rate is judged against a spread
+   of at least 20 words a minute, healthy days alarm 3% of the time instead
+   of 6.7%, and hesitant days are still caught 89% of the time.
+3. **A 20% slowdown can't be told from a normal day by timing.** Real
+   older speakers' speaking rate moves by about 21 words a minute from day
+   to day (the app's floor assumes 12), which is as much as the slowdown.
+   Weights learned from the other speakers caught it 34% of the time, but
+   raised real healthy alarms to 3.5%, above their 2% target, and they
+   were learned from changes made up for this test.
+4. **Hesitation is the change the score reliably catches.** Longer starts
+   and extra pauses were caught about 9 times in 10 with almost no alarms
+   on real healthy days.
+
+Limits: the real days are read sentences, which have almost no pauses,
+"um"s or repeats, so they only test speaking rate and start time; the
+synthetic days vary only in wording, not in how the voice sounds day to
+day. Neither contains delirium. The changes are made up, so "caught"
+means caught this kind of change, not delirium. None of this is applied
+to the app: the capped scoring is a candidate to try once real check-ins
+exist.
+
 ## The transcript fixes
 
 In [scripts/robust.py](scripts/robust.py). Each comes from a mistake seen
@@ -221,7 +279,8 @@ study measured.
   `analyze_levels.py`), run a model
   (`run_asr.py` for ONNX, `run_hf.py` for a Hugging Face folder such as the
   PC's fine-tuned model), score (`analyze.py`), fixes (`robust.py`), the voice-change
-  test (`voice_change.py`).
+  tests (`voice_change.py`, and `voice_days_transcribe.py`,
+  `voice_days_synth.py` and `voice_baseline_study.py` for the normal-days study).
 - `results/summary.json`: every number above, per model, condition and scorer.
 - `results/errors.jsonl`: every healthy answer marked wrong and impaired
   answer marked right, with what was said and what the model heard.
