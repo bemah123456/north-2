@@ -6,6 +6,13 @@ model; this folder is the 4AT false-alarm study. Hugging Face is blocked from
 this cloud environment, so every model here came from the sherpa-onnx GitHub
 releases (ONNX exports of the same weights).
 
+> **Real voices come first.** The PC session tested the same models on 44
+> real older speakers ([../pc/RESULTS.md](../pc/RESULTS.md) in the repo).
+> Where its ranking differs from the synthetic one here, go with the PC.
+> It found Whisper small best overall, Distil-Whisper as accurate on read
+> sentences but bad at month lists, and a months prompt for Whisper that cut
+> its 4AT false positives to 0% clean and 2% noisy.
+
 ## Short answer
 
 1. **Keep Whisper small (the app's current default), and add the transcript
@@ -88,6 +95,36 @@ The two impaired answers marked right were "Ninety one" heard as "81": the
 app allows one year either side of the true age (82), so a one-digit
 mishearing passed.
 
+## How loud a TV can be, and a check that catches it
+
+Even a quiet TV hurts. With Whisper small and the fixes, healthy check-ins
+raised a concern 10% of the time in a quiet room, 22% with the TV 20 dB
+below the speaker (barely audible), 37% at 10 dB and 64% at 5 dB. Parakeet
+went from 15% to 20%, 40% and 91%. So the app should not try to work
+through a TV; it should ask for it to be turned off.
+
+[scripts/noise_check.py](scripts/noise_check.py) detects that from the
+recording alone. It measures how much the loudness jumps in the gaps
+between the person's words: another voice flickers, while a fan, hiss or a
+quiet room stays steady. Per clip, it flagged 96% of TV clips even at
+20 dB, 0% of clips with steady fan noise and about 5% of quiet clips.
+Deciding per check-in (3 or more of 5 answers flagged) it asked for the TV
+to be turned off on every TV check-in and never in a quiet one, so the
+false-alarm rate drops back to the quiet-room figure.
+
+| Whisper small, fixed rules | Quiet | TV -20 dB | TV -15 dB | TV -10 dB | TV -5 dB |
+|---|---|---|---|---|---|
+| Healthy check-ins raising a concern | 10% | 22% | 22% | 37% | 64% |
+| ... with the quiet-room check | 10% | 10% | 10% | 10% | 10% |
+| Check-ins asked to turn the TV off | 0% | 100% | 100% | 100% | 100% |
+
+The "with the check" row assumes the person turns the TV off and answers
+again. The TV here is a synthetic newsreader with no music, and the quiet
+clips have no room noise, so the threshold (4.4 dB) should be tuned on real
+recordings first: the PC's Common Voice clips would show how often it
+fires on real microphones. Numbers per model are in
+`results/levels.json`.
+
 ## The transcript fixes
 
 In [scripts/robust.py](scripts/robust.py). Each comes from a mistake seen
@@ -141,7 +178,9 @@ the copies under `app-patch/` and `scripts/robust.py` are the versions this
 study measured.
 
 
-- `scripts/`: build the clips (`make_audio.py`), run a model
+- `scripts/`: build the clips (`make_audio.py`, and `make_tv_levels.py` for
+  the TV levels), the quiet-room check (`noise_check.py`,
+  `analyze_levels.py`), run a model
   (`run_asr.py` for ONNX, `run_hf.py` for a Hugging Face folder such as the
   PC's fine-tuned model), score (`analyze.py`), fixes (`robust.py`).
 - `results/summary.json`: every number above, per model, condition and scorer.

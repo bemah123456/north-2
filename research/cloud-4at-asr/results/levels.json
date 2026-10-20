@@ -1,0 +1,98 @@
+[
+ {
+  "model": "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8",
+  "condition": "older",
+  "checkins": 75000,
+  "flagged": 11000,
+  "prompted": 0,
+  "flagged_with_check": 11000
+ },
+ {
+  "model": "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8",
+  "condition": "tv20",
+  "checkins": 75000,
+  "flagged": 15000,
+  "prompted": 75000,
+  "flagged_with_check": 11000
+ },
+ {
+  "model": "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8",
+  "condition": "tv15",
+  "checkins": 75000,
+  "flagged": 29390,
+  "prompted": 75000,
+  "flagged_with_check": 11000
+ },
+ {
+  "model": "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8",
+  "condition": "tv",
+  "checkins": 75000,
+  "flagged": 30250,
+  "prompted": 75000,
+  "flagged_with_check": 11000
+ },
+ {
+  "model": "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8",
+  "condition": "tv5",
+  "checkins": 75000,
+  "flagged": 68215,
+  "prompted": 75000,
+  "flagged_with_check": 11000
+ },
+ {
+  "model": "sherpa-onnx-whisper-small",
+  "condition": "older",
+  "checkins": 75000,
+  "flagged": 7750,
+  "prompted": 0,
+  "flagged_with_check": 7750
+ },
+ {
+  "model": "sherpa-onnx-whisper-small",
+  "condition": "tv20",
+  "checkins": 75000,
+  "flagged": 16125,
+  "prompted": 75000,
+  "flagged_with_check": 7750
+ },
+ {
+  "model": "sherpa-onnx-whisper-small",
+  "condition": "tv15",
+  "checkins": 75000,
+  "flagged": 16525,
+  "prompted": 75000,
+  "flagged_with_check": 7750
+ },
+ {
+  "model": "sherpa-onnx-whisper-small",
+  "condition": "tv",
+  "checkins": 75000,
+  "flagged": 27750,
+  "prompted": 75000,
+  "flagged_with_check": 7750
+ },
+ {
+  "model": "sherpa-onnx-whisper-small",
+  "condition": "tv5",
+  "checkins": 75000,
+  "flagged": 48170,
+  "prompted": 75000,
+  "flagged_with_check": 7750
+ },
+ {
+  "model": "sherpa-onnx-whisper-small.en",
+  "condition": "older",
+  "checkins": 75000,
+  "flagged": 6750,
+  "prompted": 0,
+  "flagged_with_check": 6750
+ },
+ {
+  "model": "sherpa-onnx-whisper-small.en",
+  "condition": "tv",
+  "checkins": 75000,
+  "flagged": 39975,
+  "prompted": 75000,
+  "flagged_with_check": 6750
+ }
+]

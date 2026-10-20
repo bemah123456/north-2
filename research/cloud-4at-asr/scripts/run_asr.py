@@ -48,7 +48,7 @@ def recognizer(name):
 
 def main():
     rec = recognizer(NAME)
-    rows = [json.loads(l) for l in (AUDIO / "manifest.jsonl").read_text().splitlines()]
+    rows = [json.loads(l) for l in (AUDIO / os.environ.get("MANIFEST", "manifest.jsonl")).read_text().splitlines()]
     done = set()
     if OUT.exists():
         done = {json.loads(l)["path"] for l in OUT.read_text().splitlines()}
