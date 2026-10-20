@@ -173,7 +173,8 @@ async def submit_checkin(pid: str, request: Request) -> dict:
         data = await f.read()
         audio[ex.id] = (data, f.content_type or "audio/m4a", (f.filename or "a.m4a").rsplit(".", 1)[-1])
         try:
-            text, words = transcribe.transcribe(data, f.content_type)
+            expect = transcribe.MONTHS_BACKWARDS if ex.kind == "months_backwards" else None
+            text, words = transcribe.transcribe(data, f.content_type, expect)
         except transcribe.TranscriptionUnavailable:
             raise HTTPException(503, "Speech-to-text isn't set up on the server yet; "
                                      "set STT_PROVIDER or use typed answers")

@@ -38,7 +38,7 @@ export type Result = {
   parts: Record<string, number>;
   needs_review: number;
   voice: { measured: boolean; baseline_days: number; change_probability: number | null };
-  items: { exercise_id: string; prompt: string; transcript: string; correct?: boolean | null; correct_items?: number; out_of?: number | null; misheard?: boolean }[];
+  items: { exercise_id: string; prompt: string; transcript: string; correct?: boolean | null; correct_items?: number; out_of?: number | null; misheard?: boolean; one_month_dropped?: boolean }[];
   disclaimer: string;
 };
 

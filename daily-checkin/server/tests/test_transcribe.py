@@ -90,3 +90,24 @@ def test_clip_check_spots_a_tv(tv_db, noisy):
         x = x + tv / tv.std() * x[on].std() * 10 ** (tv_db / 20)
     check = transcribe.clip_check(_wav(x + rng.normal(size=len(t)) * 1e-4))
     assert check == {"heard_speech": True, "noisy": noisy}
+
+
+def test_months_question_primes_local_whisper(monkeypatch):
+    seen = []
+
+    class Tok:
+        def get_prompt_ids(self, text, return_tensors=None):
+            return ("ids", text)
+
+    def fake_pipeline(audio, **kwargs):
+        seen.append(kwargs)
+        return {"text": "December November", "chunks": []}
+
+    fake_pipeline.tokenizer = Tok()
+    monkeypatch.setenv("STT_PROVIDER", "local")
+    monkeypatch.setattr(transcribe, "_local_pipeline", fake_pipeline)
+    monkeypatch.setattr(transcribe, "_decode_16k", lambda audio: np.zeros(16000, dtype=np.float32))
+    transcribe.transcribe(b"audio", "audio/m4a", transcribe.MONTHS_BACKWARDS)
+    assert seen[-1]["generate_kwargs"]["prompt_ids"] == ("ids", transcribe.MONTHS_BACKWARDS)
+    transcribe.transcribe(b"audio", "audio/m4a")
+    assert "prompt_ids" not in seen[-1].get("generate_kwargs", {})

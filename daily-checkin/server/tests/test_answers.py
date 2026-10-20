@@ -94,3 +94,10 @@ def test_misheard():
     assert not A.misheard("age", "I don't know")
     assert not A.misheard("dob", "March I think")
     assert not A.misheard("place", "at the station")
+
+
+def test_one_month_dropped():
+    assert A.one_month_dropped("December November October August July June May")
+    assert not A.one_month_dropped("December November October July June May April")  # two missing
+    assert not A.one_month_dropped("December November October")  # stopped early
+    assert not A.one_month_dropped("January February March April May June July")  # forwards

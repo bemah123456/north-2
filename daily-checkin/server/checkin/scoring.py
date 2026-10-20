@@ -85,11 +85,15 @@ def score_checkin(
             elif ok is None:
                 unsure += 1
         elif ex.part == "attention":
+            attention = None if misheard else A.score_attention(ex.kind, text)
+            if attention and attention["score"] and ex.kind == "months_backwards" \
+                    and g.get("heard_speech") and A.one_month_dropped(text):
+                item["one_month_dropped"] = True
+                misheard = True
             if misheard:
                 attention = {"correct_items": 0, "needed": None, "out_of": None, "score": None}
+                item["misheard"] = True
                 unsure += 1
-            else:
-                attention = A.score_attention(ex.kind, text)
             item.update(attention)
         items.append(item)
 

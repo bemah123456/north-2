@@ -142,3 +142,16 @@ def test_noisy_checkin_is_flagged_but_scored_the_same():
     given[age]["transcript"] = "I'm sixty"
     worse = score_checkin(PERSON, DAY, build_checkin("p1", DAY), given, history())
     assert worse["total"] and any("background noise" in r for r in worse["reasons"])
+
+
+def test_one_dropped_month_waits_for_a_person():
+    att = next(ex for ex in build_checkin("p1", DAY) if ex.part == "attention")
+    assert att.kind == "months_backwards"  # on DAY
+    given = answers(DAY)
+    given[att.id]["transcript"] = "December November October August July June May"
+    typed = score_checkin(PERSON, DAY, build_checkin("p1", DAY), given, history())
+    given[att.id]["heard_speech"] = True
+    heard = score_checkin(PERSON, DAY, build_checkin("p1", DAY), given, history())
+    assert typed["parts"]["attention"] == 1  # a typed answer is taken as given
+    assert heard["parts"]["attention"] == 0 and heard["needs_review"] == 1
+    assert next(i for i in heard["items"] if i["kind"] == "months_backwards")["one_month_dropped"]

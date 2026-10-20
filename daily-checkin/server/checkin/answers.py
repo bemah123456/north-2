@@ -244,6 +244,30 @@ def misheard(kind: str, answer: str) -> bool:
     return False
 
 
+def one_month_dropped(answer: str) -> bool:
+    """Months backwards that would pass with exactly one month missing, as
+    when speech-to-text drops a month from a list ("October, August"). In
+    the project's tests this was the main cause of healthy people failing,
+    so such an answer goes to a person instead of counting as a fail."""
+    said = months_in(answer)
+    best = 0
+    for s, first in enumerate(said):
+        if first not in (11, 10):  # December, or November after a prompt
+            continue
+        run, last, gap_used = 1, first, False
+        for m in said[s + 1:]:
+            if m == last:
+                continue
+            if m == last - 1:
+                run, last = run + 1, m
+            elif not gap_used and m == last - 2:
+                run, last, gap_used = run + 1, m, True
+            else:
+                break
+        best = max(best, run)
+    return best >= 7
+
+
 def _sequence_score(said: list[int], expected: list[int]) -> int:
     """How many items were said in the right backwards order. Walks the
     expected list; an item said out of turn is skipped and not counted."""
