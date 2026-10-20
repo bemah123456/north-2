@@ -174,7 +174,8 @@ def _hear(ex, data: bytes, content_type: str | None) -> dict:
 async def check_answer(pid: str, request: Request) -> dict:
     """Multipart form: exercise_id and audio (one recorded answer). Says
     whether the app should ask the question again because the answer
-    couldn't be made out. Nothing is saved."""
+    couldn't be made out, and whether another voice (a TV) seemed to be
+    talking in the background. Nothing is saved."""
     p = person_or_404(pid)
     form = await request.form()
     day, _ = _local_day(p, form.get("date_override"))
@@ -182,8 +183,9 @@ async def check_answer(pid: str, request: Request) -> dict:
     f = form.get("audio")
     if ex is None or f is None or isinstance(f, str):
         raise HTTPException(400, "Send exercise_id and audio")
-    reason = retry_reason(ex, _hear(ex, await f.read(), f.content_type))
-    return {"ask_again": reason is not None, "reason": reason}
+    heard = _hear(ex, await f.read(), f.content_type)
+    reason = retry_reason(ex, heard)
+    return {"ask_again": reason is not None, "reason": reason, "noisy": bool(heard.get("noisy"))}
 
 
 @app.post("/people/{pid}/checkins", dependencies=[Depends(auth)])

@@ -3,7 +3,9 @@
 // quiet, or when they tap "I'm done". Before the first question it listens
 // to the room for a few seconds and asks them to turn the TV down if it's
 // loud, because background talk makes healthy answers get misheard. If the
-// server can't make out an answer, the question is asked once more.
+// server can't make out an answer, the question is asked once more, and if
+// two answers in a row had a TV talking behind them, it asks them to turn
+// it off and asks again.
 
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
@@ -28,7 +30,7 @@ const SPEECH_RATE = 0.85;
 const NOISY_ROOM_DB = -45;
 const ROOM_CHECK_MS = 3000;
 
-type Phase = 'loading' | 'roomcheck' | 'noisy' | 'checking' | 'speaking' | 'listening' | 'typing' | 'sending' | 'done' | 'error';
+type Phase = 'loading' | 'roomcheck' | 'noisy' | 'tv' | 'checking' | 'speaking' | 'listening' | 'typing' | 'sending' | 'done' | 'error';
 
 export default function CheckIn({ personId, typedMode, onFinished }: {
   personId: string;
@@ -55,6 +57,9 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
   const finishing = useRef(false);
   const askId = useRef(0);
   const askedAgain = useRef(new Set<string>());
+  const lastWasNoisy = useRef(false);
+  const tvWarned = useRef(false);
+  const pendingUri = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     (async () => {
@@ -174,7 +179,19 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
     const uri = recorder.uri ?? undefined;
     if (uri && !askedAgain.current.has(ex.id)) {
       setPhase('checking');
-      if (await api.shouldAskAgain(personId, ex.id, uri)) {
+      const check = await api.checkAnswer(personId, ex.id, uri);
+      // One noisy clip can be a fluke; two in a row means something is on.
+      const tvOn = check.noisy && lastWasNoisy.current && !tvWarned.current;
+      lastWasNoisy.current = check.noisy;
+      if (tvOn) {
+        tvWarned.current = true;
+        askedAgain.current.add(ex.id);
+        pendingUri.current = uri;
+        setPhase('tv');
+        Speech.speak('It sounds like a TV or radio is on. Could you turn it off?', { rate: SPEECH_RATE });
+        return;
+      }
+      if (check.ask_again) {
         askedAgain.current.add(ex.id);
         ask(ex, "Sorry, I didn't quite catch that. Let's try once more.");
         return;
@@ -182,6 +199,16 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
     }
     answers.current.push({ exerciseId: ex.id, audioUri: uri });
     next();
+  }
+
+  function afterTv(turnedOff: boolean) {
+    lastWasNoisy.current = false;
+    if (turnedOff) {
+      ask(exercises[index], "Thank you. Let's try that one again.");
+    } else {
+      answers.current.push({ exerciseId: exercises[index].id, audioUri: pendingUri.current });
+      next();
+    }
   }
 
   async function repeatQuestion() {
@@ -233,6 +260,16 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
         <Body>Could you turn down the TV or radio, or go somewhere quieter? Background voices make it hard to hear your answers.</Body>
         <BigButton label="I've made it quieter" onPress={checkRoom} />
         <BigButton label="Start anyway" kind="secondary" onPress={() => setStarted(true)} />
+      </Screen>
+    );
+  }
+  if (phase === 'tv') {
+    return (
+      <Screen>
+        <Title>Is a TV or radio on?</Title>
+        <Body>It sounds like someone else is talking in the background. Could you turn it off so I can hear you clearly?</Body>
+        <BigButton label="It's off now" onPress={() => afterTv(true)} />
+        <BigButton label="Keep going" kind="secondary" onPress={() => afterTv(false)} />
       </Screen>
     );
   }
