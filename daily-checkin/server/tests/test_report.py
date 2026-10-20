@@ -30,6 +30,7 @@ def test_testing_numbers(client):
     # Hand-score round trip: agree with everything except one year answer.
     sheet = list(csv.DictReader(io.StringIO(client.get("/export/hand-scoring.csv").text)))
     assert sheet and "hand_score" in sheet[0]
+    assert {row["noisy_room"] for row in sheet} == {"no"}
     for row in sheet:
         if row["kind"] == "year" and row["checkin_id"] == cids[1]:
             row["hand_score"] = "right"  # the team disagrees with the app here
@@ -48,6 +49,9 @@ def test_testing_numbers(client):
     (who,) = r["people"]
     assert (who["days_due"], who["days_done"], who["days_missed"]) == (4, 3, 1)  # Oct 15-18; today not due yet
     assert r["completion_rate"] == 0.75
+    by_room = r["hand_agreement_by_room"]
+    assert by_room["quiet"]["answers_compared"] == r["hand_agreement"]["answers_compared"]
+    assert by_room["noisy"]["answers_compared"] == 0
     assert r["avg_duration_s"] == 150 and r["avg_ease"] == 4
     h = r["hand_agreement"]
     assert h["answers_compared"] == 15 and h["agree"] == 14

@@ -99,6 +99,11 @@ def testing_report(now_utc: datetime | None = None) -> dict:
         "checkins": len(all_checkins),
         "results": {b: bands.count(b) for b in ("unlikely", "possible_impairment", "possible_delirium")},
         "hand_agreement": hand_agreement(all_checkins, hands),
+        # The room check's own flag, so home tests show how much a TV costs.
+        "hand_agreement_by_room": {
+            room: hand_agreement([c for c in all_checkins if bool(c["result"].get("noisy")) == (room == "noisy")], hands)
+            for room in ("quiet", "noisy")
+        },
         "avg_duration_s": mean(durations) if durations else None,
         "avg_ease": mean(eases) if eases else None,
         "ease_ratings": len(eases),
@@ -135,6 +140,8 @@ def to_markdown(r: dict) -> str:
         f"| Days checked in | {_pct(r['completion_rate'])} | 80%+ | {hit(r['completion_rate'], 0.8)} |",
         f"| Agreement with hand scoring | {_pct(h['rate'])} of {h['answers_compared']} answers"
         f" ({h['app_unsure']} left for review) | 90%+ | {hit(h['rate'], 0.9)} |",
+        *(f"| ... in a {room} room | {_pct(x['rate'])} of {x['answers_compared']} answers | 90%+ |"
+          f" {hit(x['rate'], 0.9)} |" for room, x in r["hand_agreement_by_room"].items()),
         f"| Average check-in length | {'n/a' if dur is None else f'{dur / 60:.1f} min'} | under 3 min"
         f" | {hit(dur, 180, higher=False)} |",
         f"| Ease for the senior | {'n/a' if r['avg_ease'] is None else f'{r['avg_ease']:.1f} / 5'}"

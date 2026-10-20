@@ -31,7 +31,7 @@ The total uses the 4AT bands: 4+ is "Call their doctor today", 1 to 3 is "Keep a
 # Server
 cd server
 python3 -m pip install -r requirements.txt
-python3 -m pytest                      # 39 tests
+python3 -m pytest
 python3 -m checkin.demo                # optional: a demo senior with a week of history
 DEMO_MODE=1 uvicorn checkin.api:app --host 0.0.0.0 --port 8000
 
@@ -58,6 +58,8 @@ Scan the QR code with Expo Go on a phone that's on the same Wi-Fi. Press `w` for
 Run the missed check-in job every 10 minutes: `curl -X POST http://<server>/jobs/missed-checkins` (from cron, Supabase `pg_cron`, or any scheduler).
 
 ## Testing with families (plan days 6 to 9)
+
+Start with [HOME-TESTING.md](HOME-TESTING.md). It covers getting the app onto testers' phones with Expo Go, what to do each day (quiet days first, then TV and other noise), and getting the results back.
 
 - **Hand scoring:** download `GET /export/hand-scoring.csv`, which has one row per answer with a link to its recording. Listen, and fill `hand_score` with `right` or `wrong`, or for the backwards task the number of items said in order. Send the file back with `curl -X POST --data-binary @sheet.csv http://<server>/import/hand-scoring`.
 - **The numbers:** `python3 -m checkin.report` (or `GET /reports/testing?format=md`) prints the evidence-slide table. It covers days checked in, agreement with hand scoring, check-in length, the senior's 1 to 5 ease rating (asked at the end of each check-in), and how many missed check-in alerts families said were real (they answer in the family view).

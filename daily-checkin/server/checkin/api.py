@@ -356,7 +356,7 @@ def audio(cid: str, exercise_id: str) -> FileResponse:
 
 
 HAND_COLUMNS = ["checkin_id", "person", "date", "exercise_id", "kind", "prompt", "transcript",
-                "app_says", "recording", "hand_score"]
+                "app_says", "noisy_room", "recording", "file", "hand_score"]
 
 
 @app.get("/export/hand-scoring.csv", dependencies=[Depends(auth)], response_class=PlainTextResponse)
@@ -379,10 +379,12 @@ def export_hand_scoring(request: Request) -> str:
                     app_says = {True: "right", False: "wrong", None: "unsure"}[item.get("correct")]
                 else:
                     app_says = f"{item['correct_items']} in order"
-                has_audio = store.audio_path(c["id"], item["exercise_id"]) is not None
+                path = store.audio_path(c["id"], item["exercise_id"])
                 w.writerow([c["id"], p["name"], c["local_date"], item["exercise_id"], item["kind"],
                             item["prompt"], item["transcript"], app_says,
-                            f"{base}/checkins/{c['id']}/audio/{item['exercise_id']}" if has_audio else "",
+                            "yes" if c["result"].get("noisy") else "no",
+                            f"{base}/checkins/{c['id']}/audio/{item['exercise_id']}" if path else "",
+                            str(path) if path else "",  # opens on the server's computer, no token needed
                             done.get(c["id"], {}).get(item["exercise_id"], "")])
     return buf.getvalue()
 
