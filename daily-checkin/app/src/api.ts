@@ -1,11 +1,37 @@
 // Talks to the check-in server (server/checkin/api.py).
 // Set EXPO_PUBLIC_API_URL to the server's address. On a phone that's your
 // computer's LAN address (e.g. http://192.168.1.20:8000), not localhost.
+// An installed build can also be pointed at another server from the setup
+// screen; that address is saved on the phone and wins over the built-in one.
 
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
+const DEFAULT_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
 const TOKEN = process.env.EXPO_PUBLIC_API_TOKEN;
+const SERVER_KEY = 'checkin.server';
+let BASE = DEFAULT_BASE;
+
+export const server = {
+  get: () => BASE,
+  async load() {
+    const saved = await AsyncStorage.getItem(SERVER_KEY);
+    if (saved) BASE = saved;
+    return BASE;
+  },
+  // Checks the address answers before saving it. An empty address goes back
+  // to the built-in one.
+  async set(url: string) {
+    const next = url.trim().replace(/\/+$/, '') || DEFAULT_BASE;
+    if (!/^https?:\/\//.test(next)) throw new Error('The address should start with https:// or http://');
+    const res = await fetch(`${next}/health`).catch(() => null);
+    if (!res?.ok) throw new Error("Couldn't reach a check-in server at that address.");
+    BASE = next;
+    if (next === DEFAULT_BASE) await AsyncStorage.removeItem(SERVER_KEY);
+    else await AsyncStorage.setItem(SERVER_KEY, next);
+    return BASE;
+  },
+};
 
 export type Exercise = {
   id: string;

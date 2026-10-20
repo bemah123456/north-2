@@ -7,6 +7,7 @@ import CheckIn from './src/screens/CheckIn';
 import FamilyHome from './src/screens/FamilyHome';
 import SeniorHome from './src/screens/SeniorHome';
 import Setup, { Role } from './src/screens/Setup';
+import { server } from './src/api';
 import { Body, Screen } from './src/ui';
 
 const KEY = 'checkin.setup';
@@ -22,8 +23,8 @@ export default function App() {
   const [checkingIn, setCheckingIn] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem(KEY)
-      .then((v) => v && setSaved(JSON.parse(v)))
+    Promise.all([server.load(), AsyncStorage.getItem(KEY)])
+      .then(([, v]) => v && setSaved(JSON.parse(v)))
       .finally(() => setLoaded(true));
   }, []);
 

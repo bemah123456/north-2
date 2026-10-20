@@ -7,12 +7,17 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
+      "bundleIdentifier": "com.north2.dailycheckin",
+      "buildNumber": "1",
       "supportsTablet": true,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Daily Check-in listens to your answers so your family knows you're doing well."
+        "NSMicrophoneUsageDescription": "Daily Check-in listens to your answers so your family knows you're doing well.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "package": "com.north2.dailycheckin",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -35,6 +40,7 @@
         }
       ],
       "expo-notifications"
-    ]
+    ],
+    "scheme": "dailycheckin"
   }
 }
