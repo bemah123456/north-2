@@ -1,0 +1,98 @@
+[
+ {
+  "model": "Whisper small",
+  "condition": "clean",
+  "checkins": 75000,
+  "concern_reask_counted_right": 0.09,
+  "concern_second_answer_scored": 0.1202,
+  "checkins_with_a_reask": 0.1867
+ },
+ {
+  "model": "Whisper small",
+  "condition": "older",
+  "checkins": 75000,
+  "concern_reask_counted_right": 0.1033,
+  "concern_second_answer_scored": 0.115,
+  "checkins_with_a_reask": 0.13
+ },
+ {
+  "model": "Whisper small",
+  "condition": "tv",
+  "checkins": 75000,
+  "concern_reask_counted_right": 0.37,
+  "concern_second_answer_scored": 0.3937,
+  "checkins_with_a_reask": 0.1807
+ },
+ {
+  "model": "Whisper small.en",
+  "condition": "clean",
+  "checkins": 75000,
+  "concern_reask_counted_right": 0.0,
+  "concern_second_answer_scored": 0.0,
+  "checkins_with_a_reask": 0.1167
+ },
+ {
+  "model": "Whisper small.en",
+  "condition": "older",
+  "checkins": 75000,
+  "concern_reask_counted_right": 0.09,
+  "concern_second_answer_scored": 0.1168,
+  "checkins_with_a_reask": 0.156
+ },
+ {
+  "model": "Whisper small.en",
+  "condition": "tv",
+  "checkins": 75000,
+  "concern_reask_counted_right": 0.533,
+  "concern_second_answer_scored": 0.5701,
+  "checkins_with_a_reask": 0.3668
+ },
+ {
+  "model": "Parakeet TDT 0.6B",
+  "condition": "clean",
+  "checkins": 75000,
+  "concern_reask_counted_right": 0.0467,
+  "concern_second_answer_scored": 0.0675,
+  "checkins_with_a_reask": 0.2233
+ },
+ {
+  "model": "Parakeet TDT 0.6B",
+  "condition": "older",
+  "checkins": 112500,
+  "concern_reask_counted_right": 0.1367,
+  "concern_second_answer_scored": 0.1528,
+  "checkins_with_a_reask": 0.1631
+ },
+ {
+  "model": "Parakeet TDT 0.6B",
+  "condition": "tv",
+  "checkins": 112500,
+  "concern_reask_counted_right": 0.4871,
+  "concern_second_answer_scored": 0.8501,
+  "checkins_with_a_reask": 0.8974
+ },
+ {
+  "model": "Whisper base.en",
+  "condition": "clean",
+  "checkins": 75000,
+  "concern_reask_counted_right": 0.1233,
+  "concern_second_answer_scored": 0.165,
+  "checkins_with_a_reask": 0.1667
+ },
+ {
+  "model": "Whisper base.en",
+  "condition": "older",
+  "checkins": 75000,
+  "concern_reask_counted_right": 0.2317,
+  "concern_second_answer_scored": 0.2504,
+  "checkins_with_a_reask": 0.0873
+ },
+ {
+  "model": "Whisper base.en",
+  "condition": "tv",
+  "checkins": 75000,
+  "concern_reask_counted_right": 0.4055,
+  "concern_second_answer_scored": 0.4381,
+  "checkins_with_a_reask": 0.23
+ }
+]
