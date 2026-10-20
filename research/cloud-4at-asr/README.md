@@ -262,6 +262,22 @@ impaired ones, which is why a few impaired check-ins drop below 100%. With
 Whisper small, about 1 check-in in 8 would need one question asked again.
 The app should count a second answer with no number as a mistake.
 
+**What asking again costs.** The tables above count a re-asked answer as
+right for a healthy person. [scripts/reask.py](scripts/reask.py) scores
+the second answer instead: the same voice answers again in one of its
+other wordings, and a second wrong or unusable answer counts as a mistake.
+
+| Healthy check-ins raising a concern | Re-ask counted right | Second answer scored | Check-ins with a re-ask |
+|---|---|---|---|
+| Whisper small, clean | 9.0% | 12.0% | 18.7% |
+| Whisper small, older | 10.3% | 11.5% | 13.0% |
+| Whisper small.en, older | 9.0% | 11.7% | 15.6% |
+| Parakeet, older | 13.7% | 15.3% | 16.3% |
+| Whisper base.en, older | 23.2% | 25.0% | 8.7% |
+
+So asking again costs one to three points of false alarms, and the
+ranking of the models doesn't change.
+
 ## Limits
 
 - The voices are synthetic. They are slowed and shaky, but they are not
