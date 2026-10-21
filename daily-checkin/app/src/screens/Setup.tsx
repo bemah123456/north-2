@@ -30,7 +30,11 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
 
   async function create() {
     setError('');
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(form.birth_date)) {
+    // Rejects dates like 1950-13-45 that only look right.
+    const [y, m, d] = form.birth_date.split('-').map(Number);
+    const born = new Date(y, m - 1, d);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(form.birth_date) || born.getMonth() !== m - 1
+        || born.getDate() !== d || born > new Date()) {
       setError('Birth date should look like 1944-03-14.');
       return;
     }
