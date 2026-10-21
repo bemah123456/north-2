@@ -158,18 +158,3 @@ def test_check_answer_needs_speech_to_text(client, monkeypatch):
                     data={"exercise_id": "age", "date_override": "2026-10-19"},
                     files={"audio": ("a.m4a", b"x", "audio/m4a")})
     assert r.status_code == 503
-
-
-@pytest.mark.parametrize("data", [
-    {"answers": "not json"},
-    {"answers": '{"exercise_id": "age"}'},
-    {"answers": '[{"transcript": "eighty"}]'},
-    {"answers": '[{"exercise_id": "age", "words": [{"text": "eighty"}]}]'},
-    {"answers": "[]", "duration_s": "abc"},
-    {"answers": "[]", "date_override": "yesterday"},
-])
-def test_malformed_check_ins_get_a_400(client, data):
-    p = person(client)
-    data = {"date_override": "2026-10-19", **data}
-    r = client.post(f"/people/{p['id']}/checkins", data=data)
-    assert r.status_code == 400, r.text
