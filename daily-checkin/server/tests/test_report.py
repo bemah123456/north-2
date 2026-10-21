@@ -75,3 +75,23 @@ def test_old_database_gets_new_columns(tmp_path, monkeypatch):
     with store.db() as c:
         cols = {r[1] for r in c.execute("pragma table_info(checkins)")}
         assert {"duration_s", "ease"} <= cols
+
+
+def test_hand_scores_with_words_dont_break_the_report(client):
+    p = person(client)
+    plan = client.get(f"/people/{p['id']}/today", params={"date_override": "2026-10-19"}).json()
+    client.post(f"/people/{p['id']}/checkins", data={"answers": typed(plan), "date_override": "2026-10-19"})
+    sheet = list(csv.DictReader(io.StringIO(client.get("/export/hand-scoring.csv").text)))
+    for row in sheet:
+        if row["kind"] == "digit_span":
+            row["hand_score"] = row["app_says"]  # "4 in order", as the sheet itself writes it
+        elif "in order" in row["app_says"]:
+            row["hand_score"] = "right"  # no count to compare: skipped, not a crash
+    out = io.StringIO()
+    w = csv.DictWriter(out, fieldnames=sheet[0].keys())
+    w.writeheader()
+    w.writerows(sheet)
+    client.post("/import/hand-scoring", content=out.getvalue())
+
+    h = report.testing_report(datetime(2026, 10, 19, 16, tzinfo=timezone.utc))["hand_agreement"]
+    assert h["answers_compared"] == 1 and h["agree"] == 1
