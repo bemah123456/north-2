@@ -25,7 +25,7 @@ Phones at home aren't on the laptop's Wi-Fi, so give the server a public https a
 cloudflared tunnel --url http://localhost:8000   # prints https://<random>.trycloudflare.com
 ```
 
-Open `https://<random>.trycloudflare.com/health` on your phone to check it works. The address changes every time cloudflared restarts. If it does restart, start the app again (step 2) with the new address.
+Open `https://<random>.trycloudflare.com/health` on your phone to check it works. The address changes every time cloudflared restarts. If it does, each tester taps "Server settings" on the app's first screen and types in the new address. Phones that are already set up need "Change setup" first.
 
 ## 2. Put the app on the phones
 
@@ -39,7 +39,7 @@ EXPO_PUBLIC_API_URL=https://<random>.trycloudflare.com EXPO_PUBLIC_API_TOKEN=<AP
 
 `--tunnel` gives a QR code that works from any network. Testers scan it with the camera (iPhone) or with Expo Go (Android). Expo Go remembers the project under "Recently opened".
 
-This only works while `expo start` is running on the laptop. If that's a problem for a tester, the alternative is an installable build through Expo's EAS service. That needs a free Expo account and puts the app on Expo's servers, so ask the team first.
+This only works while `expo start` is running on the laptop. If that's a problem for a tester, an Android tester can install a test build instead. [LAUNCH.md](LAUNCH.md) has the steps. It needs a free Expo account in a team member's name.
 
 In the app:
 - **Testing on yourself:** pick "I'm setting this up for a family member", fill in your own details, then "This is their phone: start check-ins".
@@ -56,9 +56,11 @@ Do one check-in a day at about the same time. Hold the phone the way you normall
 | 7 | One of: a fan or AC on, the kitchen with a tap running, or another person talking nearby | Other everyday noise |
 | Optional extra | Phone on a table instead of in hand; speakerphone volume low | Microphone distance |
 
-**Team members only:** on one extra check-in, give some wrong answers on purpose, such as the wrong year or skipping months. This checks that the app catches them. Write "scripted" in the log, so these check-ins are kept apart from the real false-alarm numbers. Never ask an older volunteer to do this.
+**Evening check-in:** for one tester, turn on the evening check-in in the family view ("Evening check-in: off", then "Turn it on") from day 3. It's about a minute, an hour before the time set (7 pm by default). That tests whether a normal evening is wrongly flagged as worse than the morning.
 
-After each check-in, add a row to [test-log.csv](test-log.csv): the date, who it was, the phone model, the room, and anything odd. For example, "it asked me to turn the TV down", "it re-asked the year", or "it crashed".
+**Team members only:** on one extra check-in, give some wrong answers on purpose, such as the wrong year, skipping months, or getting the numbers in the digit task wrong. If you're testing the evening check-in, do one scripted evening that's worse than that morning. This checks that the app catches them. Write "scripted" in the log, so these check-ins are kept apart from the real false-alarm numbers. Never ask an older volunteer to do this.
+
+After each check-in, add a row to [test-log.csv](test-log.csv): the date, who it was, the phone model, morning or evening, the room, and anything odd. For example, "it asked me to turn the TV down", "it re-asked the year", or "it crashed".
 
 ## 4. Volunteers and recordings
 
@@ -75,7 +77,7 @@ H="Authorization: Bearer $API_TOKEN"
 curl -H "$H" http://localhost:8000/export/hand-scoring.csv > hand-scoring.csv
 ```
 
-1. Open `hand-scoring.csv`. For each row, play the recording. The `file` column is its path on the laptop, which opens without the token. Then fill in `hand_score`. Use `right` or `wrong`, or for the backwards tasks, the number of items said in the right order. The `noisy_room` column shows when the app thought the room was noisy.
+1. Open `hand-scoring.csv`. For each row, play the recording. The `file` column is its path on the laptop, which opens without the token. Then fill in `hand_score`. Use `right` or `wrong`. For the backwards tasks and the four-number digit task, write the number of items said in the right order. The `noisy_room` column shows when the app thought the room was noisy.
 2. Send it back: `curl -H "$H" -X POST --data-binary @hand-scoring.csv http://localhost:8000/import/hand-scoring`.
 3. Run `python3 -m checkin.report` in `daily-checkin/server` for the evidence-slide table. It splits agreement with hand scoring by quiet room and noisy room.
 4. Upload `hand-scoring.csv`, `test-log.csv` and the report to the project. Claude can then work out the false-alarm rate for each room type and add the numbers to the deck.
