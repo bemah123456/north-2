@@ -141,6 +141,22 @@ def _local_day(person: dict, override: str | None) -> tuple[date, datetime]:
     return now.date(), now
 
 
+def _answer_day(person: dict, form) -> tuple[date, datetime]:
+    """The day answers are for. The app sends plan_date, the day its
+    questions were built for, so a check-in that runs past midnight is
+    scored against them and not the next day's."""
+    day, now = _local_day(person, form.get("date_override"))
+    planned = form.get("plan_date")
+    if planned and not form.get("date_override"):
+        try:
+            planned = date.fromisoformat(planned)
+        except ValueError:
+            raise HTTPException(400, "plan_date is a date like 2026-10-20")
+        if planned == day - timedelta(days=1):
+            day = planned
+    return day, now
+
+
 EVENING_OPENS_EARLY_MIN = 60
 
 
@@ -215,7 +231,7 @@ async def check_answer(pid: str, request: Request) -> dict:
     talking in the background. Nothing is saved."""
     p = person_or_404(pid)
     form = await request.form()
-    day, _ = _local_day(p, form.get("date_override"))
+    day, _ = _answer_day(p, form)
     session = _session(form.get("session"), p, day)
     ex = next((e for e in build_session(pid, day, session) if e.id == form.get("exercise_id")), None)
     f = form.get("audio")
@@ -235,7 +251,7 @@ async def submit_checkin(pid: str, request: Request) -> dict:
     scored on content only. `session` is "evening" for the evening check-in."""
     p = person_or_404(pid)
     form = await request.form()
-    day, now_local = _local_day(p, form.get("date_override"))
+    day, now_local = _answer_day(p, form)
     session = _session(form.get("session"), p, day)
     if _done(pid, day, session):
         raise HTTPException(409, "Already checked in today")

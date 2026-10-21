@@ -270,9 +270,10 @@ def one_month_dropped(answer: str) -> bool:
     return best >= 7
 
 
-def _sequence_score(said: list[int], expected: list[int]) -> int:
+def _sequence_score(said: list[int], expected: list[int], count_after_skip: bool = False) -> int:
     """How many items were said in the right backwards order. Walks the
-    expected list; an item said out of turn is skipped and not counted."""
+    expected list; an item said out of turn is skipped and not counted,
+    unless count_after_skip, where leaving one item out costs only that item."""
     correct = 0
     pos = 0
     for item in said:
@@ -283,6 +284,7 @@ def _sequence_score(said: list[int], expected: list[int]) -> int:
             pos += 1
         elif item in expected[pos + 1:]:
             pos = expected.index(item, pos) + 1
+            correct += count_after_skip
     return correct
 
 
@@ -302,7 +304,9 @@ def digits_said(answer: str) -> list[int]:
 def score_digit_span(answer: str, expect: str) -> dict:
     """How many of the digits were said back in the right (backwards) order."""
     expected = [int(ch) for ch in expect]
-    correct = _sequence_score(digits_said(answer), expected)
+    # Each left-out digit costs one; with only four or five digits, the
+    # backwards tasks' rule would make one slip cost two.
+    correct = _sequence_score(digits_said(answer), expected, count_after_skip=True)
     return {"correct_items": correct, "needed": len(expected), "out_of": len(expected)}
 
 

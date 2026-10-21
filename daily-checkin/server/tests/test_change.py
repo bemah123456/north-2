@@ -48,8 +48,10 @@ def test_digit_span_is_four_different_digits_and_hidden_on_screen():
     ("6294", 4),
     ("six two nine for", 4),  # "four" heard as "for"
     ("sixty two, ninety four", 4),
-    ("six nine two four", 2),  # counted in order, like the backwards tasks
-    ("four nine two six", 0),  # said forwards
+    ("six two four", 3),  # one digit left out costs one
+    ("two nine four", 3),
+    ("six nine two four", 3),  # two swapped: 6, 9, 4 are still in order
+    ("four nine two six", 1),  # said forwards: only one digit lines up
     ("I don't know", 0),
 ])
 def test_digit_span_scoring(said, expect):
