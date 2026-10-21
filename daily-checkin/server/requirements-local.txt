@@ -2,3 +2,5 @@
 -r requirements.txt
 transformers>=4.45
 torch>=2.3
+# Optional, about 4x faster on a laptop CPU: LOCAL_WHISPER_ENGINE=faster-whisper
+faster-whisper>=1.1
