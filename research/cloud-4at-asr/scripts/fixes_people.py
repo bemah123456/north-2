@@ -5,8 +5,8 @@ answer pass; everything else becomes "ask again" or "unsure".
 
   split_age    an age heard only as single digits or as an impossible
                number ("I made a 7", "721" for seventy-one, "295") is
-               misheard, not a wrong age. "9-5" and "9 to 5" are read as
-               95 first.
+               misheard, not a wrong age. "9-5", "9 to 5" and "nine to
+               five" are read as 95 first.
   dropped_unit a birthday whose day or year is the right one with the last
                digit dropped ("February the 20th" for the 28th, "the 3rd"
                for the 31st, "1930" for 1938) is unsure instead of wrong.
@@ -18,7 +18,9 @@ apply(A, S) patches the app's answers (A) and scoring (S) modules in place.
 import re
 
 YEAR = re.compile(r"\b(?:2000\s*(?:in|and|&|n)?\s*|20\s*,\s*0?)(\d\d)\b", re.I)
-SPLIT = re.compile(r"\b([2-9])\s*(?:-|to|too)\s*([0-9])\b", re.I)
+UNIT = {w: str(i) for i, w in enumerate(["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"])}
+D = r"([0-9]|" + "|".join(UNIT) + ")"
+SPLIT = re.compile(rf"\b{D}\s*(?:-|to|too)\s*{D}\b", re.I)
 
 
 def apply(A, S):
@@ -28,7 +30,10 @@ def apply(A, S):
         return old_year(YEAR.sub(r"20\1", answer), today)
 
     def join(text):
-        return SPLIT.sub(r"\1\2", text)
+        def two(m):
+            a, b = (UNIT.get(g.lower(), g) for g in m.groups())
+            return a + b if a not in "01" else m.group(0)
+        return SPLIT.sub(two, text)
 
     def misheard(kind, answer):
         if kind == "age":
