@@ -19,6 +19,7 @@ A voice check-in that helps families catch delirium in older relatives early. Th
 
 - PC training round 2 is finished: Whisper small v2 (trained with background talk mixed in, 31,500 clips from 454 speakers over 60) gets 8.3% word errors in quiet, the same as v1, with month/number recall 37/39. The background-talk comparison (stock small, Distil-Whisper, tuned v1 and v2) is running on the PC, about 1.5 hours left as of 2026-10-21 02:41 UTC; results go to `research/pc/training/out/comparison_round2.md`. Earlier run: with background talk, tuned small got 22.9% word errors vs 32.9% for stock. The PC side's own notes: `research/pc/HANDOFF-pc.md`.
 - Rerunning the voice-change test on unscripted speech from people over 60 (Santa Barbara Corpus), once the PC thread delivers it. All voice tests so far use read or synthetic speech.
+- PR #27 (research only): the answer rules tested on six people and 14 accented voices. Whisper small with main's rules scored 12% of healthy answers wrong, mostly ages heard as "9-5" or "721"; proposed rule fixes (`research/cloud-4at-asr/scripts/fixes_people.py`) cut that to about 1% with no impaired answer passing. Sent to the app's thread to decide. Parakeet and tuned Whisper small v2 results to follow on the same PR.
 - PR #16: brings the home test plan (`daily-checkin/HOME-TESTING.md`) up to date with the merged app.
 
 ## Waiting on the user
