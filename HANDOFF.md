@@ -16,7 +16,7 @@ A voice check-in that helps families catch delirium in older relatives early. Th
 - **Android test app**: built 2026-10-20 from the redesign. The 36 MB APK is in the Claude project files at `launch/daily-checkin-test.apk`; install steps in `daily-checkin/ANDROID-TEST-APP.md`.
 - **Family hears the check-in** (claude/family-listen): when a check-in with recorded answers is done, the family gets a message with the result and a private link that plays the whole check-in (question read aloud, then their answer). The family view has the same, plus "Hear their answer" per answer. Sharing is on by default (the setup screen already tells families the answers are recorded and shared) and can be turned off. Set `PUBLIC_URL` to the tunnel address so the link goes in the message.
 
-- **Clari redesign** (claude/clari-redesign): the app is now called Clari, with the logo, its navy and blue-to-mint colours, Nunito and Atkinson Hyperlegible type, SVG icons, and calm animations (listening rings that follow the voice, a breathing start button, a done tick). All of it respects the phone's reduce-motion setting; text stays at 7:1 contrast. Screens: `daily-checkin/screenshots/clari/`.
+- **Clari redesign** (claude/clari-redesign): the app is now called Clari, with the logo recoloured to one solid teal, flat solid colours only (no gradients: navy text and buttons, teal graphics), Nunito and Atkinson Hyperlegible type, SVG icons, and calm animations (listening rings that follow the voice, a breathing start button, a done tick). All of it respects the phone's reduce-motion setting; text stays at 7:1 contrast. Screens: `daily-checkin/screenshots/clari/`.
 
 ## In progress
 

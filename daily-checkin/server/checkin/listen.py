@@ -168,7 +168,7 @@ def page(person: dict, checkin: dict, items: list[dict], base: str) -> str:
 @media (prefers-color-scheme:dark){{:root{{--bg:#0E1A28;--card:#16263A;--text:#EAF1F8;--muted:#B5C3D2;--primary:#8FC2F0;--on-primary:#0E1A28;--line:#2B3E55}}}}
 body{{margin:0;background:var(--bg);color:var(--text);font:20px/1.5 -apple-system,system-ui,sans-serif}}
 .brand{{display:flex;align-items:center;gap:10px;margin:0 0 18px;font-weight:800;font-size:22px;color:var(--primary)}}
-.brand i{{width:28px;height:28px;border-radius:50%;background:linear-gradient(45deg,#1D7FD2,#40B5B2 55%,#59CBAD)}}
+.brand i{{width:28px;height:28px;border-radius:50%;background:#3694A1}}
 main{{max-width:640px;margin:0 auto;padding:24px 16px 48px}}
 h1{{font-size:30px;line-height:1.2;margin:0 0 8px}}
 .result{{margin:0 0 16px}} .muted{{color:var(--muted);font-size:17px}}

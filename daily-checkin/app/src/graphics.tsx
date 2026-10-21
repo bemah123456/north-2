@@ -1,20 +1,17 @@
-// Clari's graphics: one family of rounded line icons, the logo's
-// dots-and-lines motif, soft background shapes in the logo's colours, and the
+// Clari's graphics, all flat solid colours: one family of rounded line
+// icons, the logo's dots-and-lines motif, pale background shapes, and the
 // animated pieces of the check-in (speaking, listening, done). Everything
 // here is decoration or has a text label next to it, so it is hidden from
 // screen readers.
 
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { native, useBreath, useReducedMotion } from './motion';
 import { brand, colors, motion } from './theme';
 
 const hidden = { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' as const };
-
-let nextId = 0;
-const useGradientId = (name: string) => useRef(`${name}${++nextId}`).current;
 
 // ---------- icons ----------
 
@@ -82,25 +79,18 @@ export function LogoFull({ width = 200 }: { width?: number }) {
 
 // The logo's motif: three dots joined by a line. Used as a small divider.
 export function NodeLine({ width = 96 }: { width?: number }) {
-  const id = useGradientId('nl');
   const h = width * 0.25;
   return (
     <Svg width={width} height={h} viewBox="0 0 96 24" {...hidden}>
-      <Defs>
-        <LinearGradient id={id} x1="0" y1="0" x2="1" y2="0">
-          <Stop offset="0" stopColor={brand.blue} />
-          <Stop offset="1" stopColor={brand.mint} />
-        </LinearGradient>
-      </Defs>
-      <Path d="M8 18L40 8L60 14L88 6" stroke={`url(#${id})`} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      <Circle cx={8} cy={18} r={5} fill={brand.blue} />
-      <Circle cx={40} cy={8} r={5} fill={brand.teal} />
-      <Circle cx={88} cy={6} r={5} fill={brand.mint} />
+      <Path d="M8 18L40 8L60 14L88 6" stroke={brand.solid} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <Circle cx={8} cy={18} r={5} fill={brand.solid} />
+      <Circle cx={40} cy={8} r={5} fill={brand.solid} />
+      <Circle cx={88} cy={6} r={5} fill={brand.solid} />
     </Svg>
   );
 }
 
-// Two soft clouds of the logo's colours behind a screen, drifting very slowly.
+// Two large flat circles in pale tints behind a screen, drifting very slowly.
 export function Backdrop({ tone = 'calm' }: { tone?: 'calm' | 'bright' }) {
   const reduced = useReducedMotion();
   const drift = useRef(new Animated.Value(0)).current;
@@ -115,62 +105,30 @@ export function Backdrop({ tone = 'calm' }: { tone?: 'calm' | 'bright' }) {
     loop.start();
     return () => loop.stop();
   }, [reduced]);
-  const a = useGradientId('bda');
-  const b = useGradientId('bdb');
-  const strength = tone === 'bright' ? 0.34 : 0.2;
+  const opacity = tone === 'bright' ? 1 : 0.7;
   const move = (dx: number, dy: number) => ({
     transform: [
       { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [0, dx] }) },
       { translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [0, dy] }) },
     ],
   });
+  const disc = (d: number, color: string) => ({ width: d, height: d, borderRadius: d / 2, backgroundColor: color, opacity });
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill} {...hidden}>
-      <Animated.View style={[{ position: 'absolute', top: -140, right: -160 }, move(-24, 18)]}>
-        <Svg width={420} height={420}>
-          <Defs>
-            <RadialGradient id={a} cx="50%" cy="50%" r="50%">
-              <Stop offset="0" stopColor={brand.mint} stopOpacity={strength} />
-              <Stop offset="1" stopColor={brand.mint} stopOpacity={0} />
-            </RadialGradient>
-          </Defs>
-          <Rect width={420} height={420} fill={`url(#${a})`} />
-        </Svg>
-      </Animated.View>
-      <Animated.View style={[{ position: 'absolute', bottom: -180, left: -180 }, move(20, -16)]}>
-        <Svg width={460} height={460}>
-          <Defs>
-            <RadialGradient id={b} cx="50%" cy="50%" r="50%">
-              <Stop offset="0" stopColor={brand.blue} stopOpacity={strength * 0.8} />
-              <Stop offset="1" stopColor={brand.blue} stopOpacity={0} />
-            </RadialGradient>
-          </Defs>
-          <Rect width={460} height={460} fill={`url(#${b})`} />
-        </Svg>
-      </Animated.View>
+      <Animated.View style={[{ position: 'absolute', top: -170, right: -150 }, disc(340, brand.wash), move(-20, 14)]} />
+      <Animated.View style={[{ position: 'absolute', bottom: -210, left: -170 }, disc(380, colors.primarySoft), move(16, -12)]} />
     </View>
   );
 }
 
-// A circle filled with the logo's gradient.
-function GradientDisc({ size, id }: { size: number; id: string }) {
-  return (
-    <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-      <Defs>
-        <LinearGradient id={id} x1="0" y1="1" x2="1" y2="0">
-          <Stop offset="0" stopColor={brand.blue} />
-          <Stop offset="0.55" stopColor={brand.teal} />
-          <Stop offset="1" stopColor={brand.mint} />
-        </LinearGradient>
-      </Defs>
-      <Circle cx={size / 2} cy={size / 2} r={size / 2} fill={`url(#${id})`} />
-    </Svg>
-  );
+// A circle in the logo's teal.
+function Disc({ size }: { size: number }) {
+  return <View style={[StyleSheet.absoluteFill, { borderRadius: size / 2, backgroundColor: brand.solid }]} />;
 }
 
 // ---------- check-in states ----------
 
-// While the app reads a question aloud: a speaker and gently moving sound bars.
+// While the app reads a question aloud: gently moving sound bars.
 export function Speaking({ size = 150 }: { size?: number }) {
   const reduced = useReducedMotion();
   const bars = useRef([0, 1, 2, 3, 4].map(() => new Animated.Value(0.4))).current;
@@ -187,10 +145,9 @@ export function Speaking({ size = 150 }: { size?: number }) {
     loops.forEach((l, i) => setTimeout(() => l.start(), i * 90));
     return () => loops.forEach((l) => l.stop());
   }, [reduced]);
-  const id = useGradientId('sp');
   return (
     <View {...hidden} style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <GradientDisc size={size} id={id} />
+      <Disc size={size} />
       <View style={{ position: 'relative', zIndex: 1, flexDirection: 'row', alignItems: 'center', gap: size * 0.045, height: size * 0.42 }}>
         {bars.map((b, i) => (
           <Animated.View
@@ -209,7 +166,7 @@ export function Speaking({ size = 150 }: { size?: number }) {
   );
 }
 
-// While the app listens: a microphone on the logo's gradient, with rings
+// While the app listens: a microphone on the logo's teal, with rings
 // that swell when it hears their voice, so they can see it's working.
 export function Listening({ level, size = 150 }: { level: number | undefined; size?: number }) {
   const reduced = useReducedMotion();
@@ -220,7 +177,6 @@ export function Listening({ level, size = 150 }: { level: number | undefined; si
   useEffect(() => {
     Animated.spring(loud, { toValue: reduced ? 0 : target, speed: 18, bounciness: 2, useNativeDriver: native }).start();
   }, [target, reduced]);
-  const id = useGradientId('li');
   // Visible even in silence, then swelling with their voice.
   const ring = (rest: number, swell: number, opacity: number) => ({
     position: 'absolute' as const,
@@ -238,7 +194,7 @@ export function Listening({ level, size = 150 }: { level: number | undefined; si
       <Animated.View style={ring(1.34, 1.66, 0.4)} />
       <Animated.View style={ring(1.16, 1.34, 0.7)} />
       <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-        <GradientDisc size={size} id={id} />
+        <Disc size={size} />
         {/* Its own layer, so browsers paint it above the disc as phones do. */}
         <View style={{ position: 'relative', zIndex: 1 }}>
           <Icon name="mic" size={size * 0.46} color="#FFFFFF" weight={2.2} />
@@ -248,8 +204,8 @@ export function Listening({ level, size = 150 }: { level: number | undefined; si
   );
 }
 
-// A check-in finished: the gradient circle grows in, the tick pops in, and
-// three dots in the logo's colours float out around it.
+// A check-in finished: the teal circle grows in, the tick pops in, and
+// three dots like the logo's float out around it.
 export function Done({ size = 150 }: { size?: number }) {
   const reduced = useReducedMotion();
   const grow = useRef(new Animated.Value(reduced ? 1 : 0)).current;
@@ -267,12 +223,11 @@ export function Done({ size = 150 }: { size?: number }) {
         Animated.timing(d, { toValue: 1, duration: 520, easing: Easing.out(Easing.back(1.6)), useNativeDriver: native }))),
     ]).start();
   }, [reduced]);
-  const id = useGradientId('dn');
   const box = size * 1.55;
   const spots = [
-    { x: -0.62, y: 0.32, r: 0.075, color: brand.blue },
-    { x: -0.5, y: -0.55, r: 0.055, color: brand.teal },
-    { x: 0.62, y: -0.36, r: 0.085, color: brand.mint },
+    { x: -0.62, y: 0.32, r: 0.075, color: brand.solid },
+    { x: -0.5, y: -0.55, r: 0.055, color: brand.solid },
+    { x: 0.62, y: -0.36, r: 0.085, color: brand.solid },
   ];
   return (
     <View {...hidden} style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center' }}>
@@ -299,7 +254,7 @@ export function Done({ size = 150 }: { size?: number }) {
         );
       })}
       <Animated.View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center', transform: [{ scale: grow }] }}>
-        <GradientDisc size={size} id={id} />
+        <Disc size={size} />
         <Animated.View style={{ position: 'relative', zIndex: 1, opacity: tick, transform: [{ scale: tick.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }] }}>
           <Icon name="check" size={size * 0.58} color="#FFFFFF" weight={3} />
         </Animated.View>

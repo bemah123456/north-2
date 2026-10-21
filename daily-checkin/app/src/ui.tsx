@@ -1,10 +1,9 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { Backdrop, Icon, IconName, LogoMark, StatusDot } from './graphics';
 import { useReducedMotion } from './motion';
-import { colors, font, maxScale, motion, radius, space, statusColor, statusIcon, statusSoft, type } from './theme';
+import { brand, colors, font, maxScale, motion, radius, space, statusColor, statusIcon, statusSoft, type } from './theme';
 
 // One screen: content at the top, and the main action pinned to the bottom
 // where a thumb can reach it without scrolling. `backdrop` adds the soft
@@ -74,7 +73,7 @@ export function BigButton({ label, hint, onPress, kind = 'primary', size = 'norm
 }) {
   const press = usePress();
   const fg = kind === 'secondary' ? colors.primary : colors.primaryText;
-  const fill = kind === 'primary' ? ['#215492', colors.primary] as const : kind === 'danger' ? [colors.red, colors.red] as const : null;
+  const fill = kind === 'primary' ? colors.primary : kind === 'danger' ? colors.red : null;
   const content = (
     <>
       <View style={[styles.buttonRow, size === 'hero' && icon && styles.heroStack]}>
@@ -102,14 +101,9 @@ export function BigButton({ label, hint, onPress, kind = 'primary', size = 'norm
       >
         {({ pressed }) =>
           fill ? (
-            <LinearGradient
-              colors={pressed ? [colors.primaryPressed, colors.primaryPressed] : fill}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={[styles.button, size === 'hero' && styles.hero]}
-            >
+            <View style={[styles.button, size === 'hero' && styles.hero, { backgroundColor: pressed ? colors.primaryPressed : fill }]}>
               {content}
-            </LinearGradient>
+            </View>
           ) : (
             <View style={[styles.button, styles.secondary, pressed && { backgroundColor: colors.primarySoft }]}>{content}</View>
           )
@@ -245,9 +239,7 @@ export function Progress({ at, of }: { at: number; of: number }) {
     <View accessibilityLabel={`Question ${at} of ${of}`} style={{ marginBottom: space.l }}>
       <Text style={styles.progressText}>Question {at} of {of}</Text>
       <View style={styles.progressTrack}>
-        <Animated.View style={[styles.progressFill, { width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]}>
-          <LinearGradient colors={['#2A8BDB', '#3FB2B0', '#5CCDAB']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
-        </Animated.View>
+        <Animated.View style={[styles.progressFill, { width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
       </View>
     </View>
   );
@@ -293,5 +285,5 @@ const styles = StyleSheet.create({
   pillText: { fontFamily: font.bodyBold, fontSize: type.small },
   progressText: { fontFamily: font.bodyBold, fontSize: type.small, color: colors.muted, marginBottom: space.xs },
   progressTrack: { height: 12, borderRadius: 6, backgroundColor: colors.border, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 6, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 6, backgroundColor: brand.solid },
 });

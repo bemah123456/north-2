@@ -1,7 +1,7 @@
-// Clari's look, taken from the logo: navy for text and buttons, and the
-// logo's blue-to-mint gradient for graphics only (white text on it would be
-// too faint). Large type and strong contrast for older eyes and shaky hands:
-// every text colour here reads at 7:1 or better on the background and on its
+// Clari's look, taken from the logo, in flat solid colours (no gradients):
+// navy for text and buttons, and the logo's teal for graphics. White icons on
+// the teal read at 3.6:1; text never sits on it. Large type and strong
+// contrast for older eyes and shaky hands: every text colour here reads at 7:1 or better on the background and on its
 // own soft tint (WCAG AAA), and no status is shown by colour alone: each one
 // also has an icon and a word.
 export const colors = {
@@ -24,9 +24,9 @@ export const colors = {
   greySoft: '#ECEEF1',
 };
 
-// The logo's gradient, lower left to upper right. Decoration only.
-export const brand = { blue: '#1D7FD2', teal: '#40B5B2', mint: '#59CBAD', glow: '#BFE6E0' };
-export const brandGradient = [brand.blue, brand.teal, brand.mint] as const;
+// The logo mark's solid teal, a soft tint of it for glows and rings, and a
+// paler one for background shapes. Graphics only.
+export const brand = { solid: '#3694A1', glow: '#CDE7EA', wash: '#E4F1F3' };
 
 export const statusColor: Record<string, string> = {
   unlikely: colors.green,
