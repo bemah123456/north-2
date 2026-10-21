@@ -23,11 +23,11 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
   const [person, setPerson] = useState<Person | null>(null);
   const [days, setDays] = useState<DayRow[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const player = useCheckinPlayer();
   const [open, setOpen] = useState<string | null>(null);
   const [detail, setDetail] = useState<Result | null>(null);
   const [error, setError] = useState('');
   const [showAll, setShowAll] = useState(false);
-  const player = useCheckinPlayer();
 
   const load = useCallback(async () => {
     try {

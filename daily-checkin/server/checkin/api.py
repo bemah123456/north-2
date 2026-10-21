@@ -61,9 +61,9 @@ class PersonIn(BaseModel):
     family_phone: str | None = None
     senior_push_token: str | None = None
     family_push_token: str | None = None
+    share_recordings: bool = Field(True, description="Send the family each check-in's recording when it's done")
     evening_checkin: bool = Field(False, description="A shorter second check-in in the evening, compared with the morning")
     evening_time: str = Field("19:00", pattern=r"^\d{2}:\d{2}$")
-    share_recordings: bool = Field(True, description="Send the family each check-in's recording when it's done")
 
 
 class PersonPatch(BaseModel):
@@ -75,9 +75,9 @@ class PersonPatch(BaseModel):
     family_phone: str | None = None
     senior_push_token: str | None = None
     family_push_token: str | None = None
+    share_recordings: bool | None = None
     evening_checkin: bool | None = None
     evening_time: str | None = Field(None, pattern=r"^\d{2}:\d{2}$")
-    share_recordings: bool | None = None
 
 
 class FamilyReport(BaseModel):
