@@ -72,7 +72,7 @@ def augment(audio, rows, rng):
 
 
 def train(model, processor, rows, steps, lr, batch, accum, aug=False, key_frac=0.0, freeze_encoder=False,
-          ckpt=None, ckpt_every=50):
+          ckpt=None, ckpt_every=20):
     """ckpt: folder for resumable checkpoints (weights, optimiser, step), so a restarted machine
     picks up where it stopped instead of starting over."""
     start = 0
