@@ -11,12 +11,14 @@ A voice check-in that helps families catch delirium in older relatives early. Th
 - **The app** (`daily-checkin/`), PRs #1 to #5, #8, #10 to #15: Python scoring server, Expo phone app for the older person and their family, Supabase schema, reminders, missed check-in alerts, the in-app server address setting, a Dockerfile, and the senior-friendly redesign (#15). How to run it: `daily-checkin/README.md`. Launch steps: `daily-checkin/LAUNCH.md`.
 - **Sharper detection** (#12): daily digit span, an optional evening check-in, drowsiness signs, and a combined change score so the voice alone can't trigger "call the doctor". Check script: `research/sharper-detection/`.
 - **Research**: speech model comparison and transcript fixes (`research/cloud-4at-asr/`), normal-days study (#6: ignoring one-off "um"s and repeats halved voice false alarms), PC model training (`research/pc/`, including the fine-tune results in `RESULTS-finetune-2026-10-20.md`), speech sources and competitors (`research/*.md`).
-- **Recommended speech setup**: Whisper small with a month-list hint, plus "ask again if exactly one month is missing". Our fine-tuned Whisper small is slightly better (8.3% vs 8.6% word errors on 44 older speakers) with the same 0% clean / 2% noisy false positives. Not yet tested on real delirium recordings.
+- **Recommended speech setup**: Whisper small with a month-list hint, the transcript fixes (`robust.py`), plus "ask again if exactly one month is missing". Our fine-tuned Whisper small is slightly better (8.3% vs 8.6% word errors on 44 older speakers, intervals overlap) with the same 0% clean / 2% noisy false positives; the 926 MB model stays on the PC. Not yet tested on real delirium recordings. Comparison dashboard: https://claude.ai/artifact/9o9DLdos6uvuh5eGuhJ4Dj
+- **Background TV** is the biggest cause of false alarms. The quiet-room check asks 1.7% of real no-TV check-ins and 99% of TV check-ins to turn the TV off.
 - **Android test app**: built 2026-10-20 from the redesign. The 36 MB APK is in the Claude project files at `launch/daily-checkin-test.apk`; install steps in `daily-checkin/ANDROID-TEST-APP.md`.
 
 ## In progress
 
 - Training round 2 on the user's PC (noisy rooms, older voices), with an automatic comparison against stock Whisper small and Distil-Whisper when it finishes.
+- Rerunning the voice-change test on unscripted speech from people over 60 (Santa Barbara Corpus), once the PC thread delivers it. All voice tests so far use read or synthetic speech.
 - PR #16: brings the home test plan (`daily-checkin/HOME-TESTING.md`) up to date with the merged app.
 
 ## Waiting on the user
