@@ -72,10 +72,12 @@ def testing_report(now_utc: datetime | None = None) -> dict:
     hands = store.hand_scores()
     people = []
     all_checkins = []
+    evenings = []
     for p in store.all_people():
         today = local_now(now_utc, p["timezone"]).date()
         cs = store.checkins(p["id"])
         all_checkins += cs
+        evenings += store.checkins(p["id"], "evening")
         done = {date.fromisoformat(c["local_date"]) for c in cs}
         off = store.days_off(p["id"])
         start = date.fromisoformat(p["created_date"])
@@ -93,7 +95,10 @@ def testing_report(now_utc: datetime | None = None) -> dict:
     due_total = sum(x["days_due"] for x in people)
     done_total = sum(x["days_done"] for x in people)
     durations = [c["duration_s"] for c in all_checkins if c.get("duration_s")]
-    eases = [c["ease"] for c in all_checkins if c.get("ease")]
+    # Evening check-ins are rated and hand-scored too; days and durations
+    # stay about the morning one.
+    both = all_checkins + evenings
+    eases = [c["ease"] for c in both if c.get("ease")]
     family_alerts = [a for a in store.all_alerts() if a["kind"] in ("missed", "missed_pattern")]
     marked = [a for a in family_alerts if a["was_real"] is not None]
     bands = [c["result"]["band"] for c in all_checkins]
@@ -103,10 +108,11 @@ def testing_report(now_utc: datetime | None = None) -> dict:
         "completion_rate": done_total / due_total if due_total else None,
         "checkins": len(all_checkins),
         "results": {b: bands.count(b) for b in ("unlikely", "possible_impairment", "possible_delirium")},
-        "hand_agreement": hand_agreement(all_checkins, hands),
+        "evening_checkins": len(evenings),
+        "hand_agreement": hand_agreement(both, hands),
         # The room check's own flag, so home tests show how much a TV costs.
         "hand_agreement_by_room": {
-            room: hand_agreement([c for c in all_checkins if bool(c["result"].get("noisy")) == (room == "noisy")], hands)
+            room: hand_agreement([c for c in both if bool(c["result"].get("noisy")) == (room == "noisy")], hands)
             for room in ("quiet", "noisy")
         },
         "avg_duration_s": mean(durations) if durations else None,

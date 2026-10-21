@@ -136,7 +136,10 @@ def _local_day(person: dict, override: str | None) -> tuple[date, datetime]:
     if override:
         if not DEMO_MODE:
             raise HTTPException(400, "Setting the date is only allowed in demo mode")
-        d = date.fromisoformat(override)
+        try:
+            d = date.fromisoformat(override)
+        except ValueError:
+            raise HTTPException(400, "date_override is a date like 2026-10-20")
         return d, now.replace(year=d.year, month=d.month, day=d.day)
     return now.date(), now
 
@@ -242,9 +245,13 @@ async def submit_checkin(pid: str, request: Request) -> dict:
 
     exercises = build_session(pid, day, session)
     given: dict[str, dict] = {}
-    for a in json.loads(form.get("answers") or "[]"):
-        given[a["exercise_id"]] = {"transcript": a.get("transcript", ""),
-                                   "words": words_from_json(a.get("words"))}
+    try:
+        for a in json.loads(form.get("answers") or "[]"):
+            given[a["exercise_id"]] = {"transcript": a.get("transcript") or "",
+                                       "words": words_from_json(a.get("words"))}
+    except (ValueError, TypeError, KeyError, AttributeError):
+        raise HTTPException(400, "answers is a JSON list of {exercise_id, transcript?, words?}; "
+                                 "each word has text, start and end")
     audio = {}
     for ex in exercises:
         f = form.get(f"audio_{ex.id}")
@@ -256,7 +263,10 @@ async def submit_checkin(pid: str, request: Request) -> dict:
 
     hour = now_local.hour + now_local.minute / 60
     duration = form.get("duration_s")
-    duration = float(duration) if duration else None
+    try:
+        duration = float(duration) if duration else None
+    except ValueError:
+        raise HTTPException(400, "duration_s is a number of seconds")
     if session == "evening":
         return _submit_evening(p, day, exercises, given, audio, hour, duration)
 
