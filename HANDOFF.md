@@ -1,6 +1,6 @@
 # Handoff
 
-Last updated 2026-10-21. A short, current summary of North 2. Every piece of finished work updates this file in the same pull request.
+Last updated 2026-10-21 (PR #18). A short, current summary of North 2. Every piece of finished work updates this file in the same pull request.
 
 ## Goal
 
@@ -25,7 +25,7 @@ A voice check-in that helps families catch delirium in older relatives early. Th
 
 - In the PC thread, type "yes, download and share the Santa Barbara list" so the unscripted older-speaker data can be used.
 - Team names for the hackathon, and a yes to make the code public.
-- A yes to merge PR #16 (and this one).
+- A yes to merge PR #16.
 - For a store release: an Expo account, where to host the server, Apple/Google developer accounts, and the medical-device wording (see `daily-checkin/LAUNCH.md`).
 
 ## On hold
