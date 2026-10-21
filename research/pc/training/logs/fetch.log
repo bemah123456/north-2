@@ -1,0 +1,15 @@
+﻿data/train-00000-of-00049.parquet: kept 865 older clips (865 total) in 65s
+data/train-00001-of-00049.parquet: kept 912 older clips (1777 total) in 65s
+data/train-00002-of-00049.parquet: kept 866 older clips (2643 total) in 62s
+data/train-00003-of-00049.parquet: kept 919 older clips (3562 total) in 64s
+data/train-00004-of-00049.parquet: kept 876 older clips (4438 total) in 59s
+data/train-00005-of-00049.parquet: kept 850 older clips (5288 total) in 67s
+data/train-00006-of-00049.parquet: kept 922 older clips (6210 total) in 63s
+data/train-00007-of-00049.parquet: kept 901 older clips (7111 total) in 63s
+data/train-00008-of-00049.parquet: kept 918 older clips (8029 total) in 55s
+data/train-00009-of-00049.parquet: kept 907 older clips (8936 total) in 72s
+data/train-00010-of-00049.parquet: kept 912 older clips (9848 total) in 71s
+data/train-00011-of-00049.parquet: kept 917 older clips (10765 total) in 68s
+data/train-00012-of-00049.parquet: kept 916 older clips (11681 total) in 62s
+data/train-00013-of-00049.parquet: kept 888 older clips (12569 total) in 62s
+done: 12569 older-speaker clips in %USERPROFILE%\Documents\Delirium Speech Research\data\cv17_older
