@@ -28,7 +28,8 @@ create table if not exists people (
   family_push_token text,
   created_date text not null,
   evening_checkin integer not null default 0,
-  evening_time text not null default '19:00'
+  evening_time text not null default '19:00',
+  share_recordings integer not null default 1
 );
 create table if not exists checkins (
   id text primary key,
@@ -42,6 +43,7 @@ create table if not exists checkins (
   duration_s real,
   ease integer,
   session text not null default 'morning',
+  listen_key text,
   unique (person_id, local_date, session)
 );
 create table if not exists days_off (
@@ -71,7 +73,7 @@ create table if not exists hand_scores (
 
 PERSON_FIELDS = ["name", "birth_date", "timezone", "checkin_time", "place_keywords",
                  "family_name", "family_phone", "senior_push_token", "family_push_token",
-                 "evening_checkin", "evening_time"]
+                 "evening_checkin", "evening_time", "share_recordings"]
 
 
 @contextmanager
@@ -90,8 +92,9 @@ def db():
 
 
 # Columns added after the first release; older databases get them here.
-_ADDED = {"checkins": ["duration_s real", "ease integer"], "alerts": ["was_real integer", "family_note text"],
-          "people": ["evening_checkin integer not null default 0", "evening_time text not null default '19:00'"]}
+_ADDED = {"checkins": ["duration_s real", "ease integer", "listen_key text"], "alerts": ["was_real integer", "family_note text"],
+          "people": ["evening_checkin integer not null default 0", "evening_time text not null default '19:00'",
+                     "share_recordings integer not null default 1"]}
 
 
 def _migrate(conn) -> None:
@@ -127,6 +130,7 @@ def _person(row) -> dict | None:
     p = dict(row)
     p["place_keywords"] = json.loads(p["place_keywords"])
     p["evening_checkin"] = bool(p.get("evening_checkin"))
+    p["share_recordings"] = bool(p.get("share_recordings"))
     return p
 
 
@@ -136,12 +140,13 @@ def create_person(data: dict, today: date) -> dict:
         c.execute(
             "insert into people (id, name, birth_date, timezone, checkin_time, place_keywords,"
             " family_name, family_phone, senior_push_token, family_push_token, created_date,"
-            " evening_checkin, evening_time) values (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            " evening_checkin, evening_time, share_recordings) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (pid, data["name"], data["birth_date"], data["timezone"], data["checkin_time"],
              json.dumps(data.get("place_keywords", [])), data.get("family_name"),
              data.get("family_phone"), data.get("senior_push_token"),
              data.get("family_push_token"), today.isoformat(),
-             int(bool(data.get("evening_checkin"))), data.get("evening_time") or "19:00"),
+             int(bool(data.get("evening_checkin"))), data.get("evening_time") or "19:00",
+             int(data.get("share_recordings", True))),
         )
     return get_person(pid)
 
@@ -150,6 +155,9 @@ def update_person(pid: str, changes: dict) -> dict | None:
     changes = {k: v for k, v in changes.items() if k in PERSON_FIELDS}
     if "place_keywords" in changes:
         changes["place_keywords"] = json.dumps(changes["place_keywords"])
+    for flag in ("evening_checkin", "share_recordings"):
+        if flag in changes:
+            changes[flag] = int(bool(changes[flag]))
     if changes:
         sets = ", ".join(f"{k} = ?" for k in changes)
         with db() as c:
@@ -218,6 +226,14 @@ def audio_path(cid: str, exercise_id: str) -> Path | None:
     if not folder.exists():
         return None
     return next(folder.glob(f"{exercise_id}.*"), None)
+
+
+def set_listen_key(cid: str, key: str) -> str:
+    """The secret part of the family's listening link for one check-in.
+    Keeps an existing key, so a link already sent keeps working."""
+    with db() as c:
+        c.execute("update checkins set listen_key = coalesce(listen_key, ?) where id = ?", (key, cid))
+        return c.execute("select listen_key from checkins where id = ?", (cid,)).fetchone()[0]
 
 
 def update_checkin_result(cid: str, result: dict, family_says_different: bool | None = None) -> None:

@@ -14,6 +14,7 @@ A voice check-in that helps families catch delirium in older relatives early. Th
 - **Recommended speech setup**: Whisper small with a month-list hint, the transcript fixes (`robust.py`), plus "ask again if exactly one month is missing". Our fine-tuned Whisper small is slightly better (8.3% vs 8.6% word errors on 44 older speakers, intervals overlap) with the same 0% clean / 2% noisy false positives; the 926 MB model stays on the PC. Not yet tested on real delirium recordings. Comparison dashboard: https://claude.ai/artifact/9o9DLdos6uvuh5eGuhJ4Dj
 - **Background TV** is the biggest cause of false alarms. The quiet-room check asks 1.7% of real no-TV check-ins and 99% of TV check-ins to turn the TV off.
 - **Android test app**: built 2026-10-20 from the redesign. The 36 MB APK is in the Claude project files at `launch/daily-checkin-test.apk`; install steps in `daily-checkin/ANDROID-TEST-APP.md`.
+- **Family hears the check-in** (claude/family-listen): when a check-in with recorded answers is done, the family gets a message with the result and a private link that plays the whole check-in (question read aloud, then their answer). The family view has the same, plus "Hear their answer" per answer. Sharing is on by default (the setup screen already tells families the answers are recorded and shared) and can be turned off. Set `PUBLIC_URL` to the tunnel address so the link goes in the message.
 
 ## In progress
 
