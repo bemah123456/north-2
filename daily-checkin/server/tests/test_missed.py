@@ -51,3 +51,17 @@ def test_late_checkin():
     assert not is_late([9.0, 9.2], 14.0)
     assert is_late([9.0, 9.2, 8.9, 9.1], 13.0)
     assert not is_late([9.0, 9.2, 8.9, 9.1], 10.5)
+
+
+def test_late_check_in_time_still_alerts_the_family_after_midnight():
+    late = dict(PERSON, checkin_time="22:00")
+    done = {date(2026, 10, 18)}
+    sent = {("2026-10-19", "reminder"), ("2026-10-19", "reminder_again")}
+    # 01:00 on the 20th: the 22:00 check-in on the 19th was never done.
+    actions = due_actions(late, datetime(2026, 10, 20, 5, 0, tzinfo=timezone.utc), done, set(), sent)
+    assert [(a["date"], a["kind"], a["to"]) for a in actions] == [("2026-10-19", "missed", "family")]
+    # No senior reminders for yesterday, and nothing once it's sent or they checked in.
+    sent.add(("2026-10-19", "missed"))
+    assert due_actions(late, datetime(2026, 10, 20, 5, 30, tzinfo=timezone.utc), done, set(), sent) == []
+    assert due_actions(late, datetime(2026, 10, 20, 5, 0, tzinfo=timezone.utc),
+                       done | {date(2026, 10, 19)}, set(), set()) == []

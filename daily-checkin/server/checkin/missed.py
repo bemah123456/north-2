@@ -25,6 +25,21 @@ def _missed(day: date, checked_in: set[date], days_off: set[date], since: date) 
     return day >= since and day not in checked_in and day not in days_off
 
 
+def _plan(name: str, day: date, checked_in: set[date], days_off: set[date], since: date) -> list:
+    """(minutes after the check-in time, kind, to, message) for one day."""
+    plan = [(0, "reminder", "senior", "Time for your daily check-in. It only takes 2 minutes.")]
+    plan.append((REMINDER_AGAIN_MIN, "reminder_again", "senior",
+                 "Friendly reminder: your daily check-in is waiting for you."))
+    if _missed(day - timedelta(days=1), checked_in, days_off, since):
+        plan.append((FAMILY_ALERT_MIN, "missed_pattern", "family",
+                     f"{name} has missed their check-in two days in a row. Please check on "
+                     f"them, and consider calling their doctor if they seem unwell or confused."))
+    else:
+        plan.append((FAMILY_ALERT_MIN, "missed", "family",
+                     f"{name} hasn't done today's check-in. Give them a call."))
+    return plan
+
+
 def due_actions(
     person: dict,
     now_utc: datetime,
@@ -34,35 +49,27 @@ def due_actions(
 ) -> list[dict]:
     """What to send right now for one person. already_sent holds
     (date iso, kind) pairs so a job that runs every few minutes sends each
-    message once."""
+    message once. With a late check-in time, yesterday's family alert can
+    fall after midnight; it is still sent, under yesterday's date."""
     now = local_now(now_utc, person["timezone"])
     today = now.date()
     since = date.fromisoformat(person["created_date"])
-    if today in days_off or today in checked_in or today < since:
-        return []
-    due = datetime.combine(today, time.fromisoformat(person["checkin_time"]), now.tzinfo)
-    minutes_late = (now - due).total_seconds() / 60
-    if minutes_late < 0:
-        return []
-
-    name = person["name"]
-    plan = [(0, "reminder", "senior", "Time for your daily check-in. It only takes 2 minutes.")]
-    plan.append((REMINDER_AGAIN_MIN, "reminder_again", "senior",
-                 "Friendly reminder: your daily check-in is waiting for you."))
-    yesterday = today - timedelta(days=1)
-    if _missed(yesterday, checked_in, days_off, since):
-        plan.append((FAMILY_ALERT_MIN, "missed_pattern", "family",
-                     f"{name} has missed their check-in two days in a row. Please check on "
-                     f"them, and consider calling their doctor if they seem unwell or confused."))
-    else:
-        plan.append((FAMILY_ALERT_MIN, "missed", "family",
-                     f"{name} hasn't done today's check-in. Give them a call."))
+    at = time.fromisoformat(person["checkin_time"])
+    midnight = datetime.combine(today, time(0), now.tzinfo)
 
     actions = []
-    for after, kind, to, message in plan:
-        if minutes_late >= after and (today.isoformat(), kind) not in already_sent:
-            actions.append({"person_id": person["id"], "date": today.isoformat(),
-                            "kind": kind, "to": to, "message": message})
+    for day in (today - timedelta(days=1), today):
+        if day in days_off or day in checked_in or day < since:
+            continue
+        due = datetime.combine(day, at, now.tzinfo)
+        for after, kind, to, message in _plan(person["name"], day, checked_in, days_off, since):
+            when = due + timedelta(minutes=after)
+            # Yesterday's plan only adds family alerts that fell after midnight.
+            if day < today and (to != "family" or when < midnight):
+                continue
+            if now >= when and (day.isoformat(), kind) not in already_sent:
+                actions.append({"person_id": person["id"], "date": day.isoformat(),
+                                "kind": kind, "to": to, "message": message})
     # Only the most recent senior reminder is worth sending if the job was down.
     senior = [a for a in actions if a["to"] == "senior"]
     if len(senior) > 1:
