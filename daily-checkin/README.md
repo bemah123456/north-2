@@ -27,6 +27,8 @@ The total uses the 4AT bands: 4+ is "Call their doctor today", 1 to 3 (or "some 
 
 **Voice model.** It measures response delay, speaking rate, pauses, "um/uh" rate, repeated words and how much they say. Each measure is compared to that person's own last 2 to 14 usual days, and a logistic model turns the differences into a probability, which is one part of the change score (it no longer scores 4 points on its own). A single "um" or repeated word can't push it far on its own: those two measures count at most 1.5 times their usual spread. **The shipped model (`server/checkin/model.json`) is trained on simulated people**, so its 0.99 score on held-out people means nothing about real accuracy. Retrain it on real recordings (see below).
 
+**Listening to the check-in.** When a check-in with recorded answers is done, the family gets a message: "Dad just finished today's check-in: Looks like their usual self. Listen to it here: <link>". The link opens a plain page that plays the whole check-in in order. The phone reads each question aloud, then their recorded answer plays. It works in any browser, with no app or login, because each check-in gets its own random key. The family view has the same thing: a "Listen to today's check-in" button, and "Hear their answer" under each answer. Hearing an answer helps when the app may have misheard, but it never changes the result, and both places say so. The family can turn sharing off in their settings, which also stops old links working. Typed answers (the web demo) have nothing to play, so no message goes out.
+
 **Missed check-ins.** The senior gets a reminder at their check-in time and again an hour later. After 3 hours the family gets "Mom hasn't done today's check-in. Give her a call." Two missed days in a row sends a stronger message. Families can mark days off. A check-in 3+ hours later than usual is also noted.
 
 ## Design for older users
@@ -61,6 +63,7 @@ Scan the QR code with Expo Go on a phone that's on the same Wi-Fi. For an instal
 | `JUDGE_ENABLED=1` + `ANTHROPIC_API_KEY` | Claude double-checks answers the rules can't settle |
 | `NOTIFY_LIVE=1` + `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` | Real texts to the family. Without it, alerts are only recorded and shown in the family view. |
 | `API_TOKEN` (server) + `EXPO_PUBLIC_API_TOKEN` (app) | Requires a shared token on every request |
+| `PUBLIC_URL` | The server's address as phones reach it, e.g. `https://<random>.trycloudflare.com`. Puts the listening link in the "check-in done" message. Without it, the message says to open the app. |
 | `DEMO_MODE=1` | Lets you set the date or time on requests, for demos and tests. Turn it off for real users. |
 
 Run the missed check-in job every 10 minutes: `curl -X POST http://<server>/jobs/missed-checkins` (from cron, Supabase `pg_cron`, or any scheduler).

@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Alert, api, DayRow, Person, Result } from '../api';
+import { Alert, api, DayRow, Person, Recording, Result } from '../api';
+import { NowPlaying, useCheckinPlayer } from '../listen';
 import { colors, maxScale, statusColor, statusSoft, type } from '../theme';
 import { BigButton, Body, Card, QuietButton, Screen, Section, StatusIcon, StatusPill, Title } from '../ui';
 
@@ -26,6 +27,7 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
   const [detail, setDetail] = useState<Result | null>(null);
   const [error, setError] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const player = useCheckinPlayer();
 
   const load = useCallback(async () => {
     try {
@@ -52,6 +54,11 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
     }
     setOpen(row.date);
     setDetail(row.checkin_id ? await api.checkin(row.checkin_id) : null);
+  }
+
+  async function setSharing(on: boolean) {
+    if (!on) player.stop();
+    setPerson(await api.updatePerson(personId, { share_recordings: on }));
   }
 
   async function setEvening(on: boolean) {
@@ -92,6 +99,9 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
               onPress={() => setShowAll(!showAll)}
             />
           )}
+          {latest.checkin_id && person?.share_recordings && alerts.some((a) => a.date === latest.date && a.kind === 'recording') && (
+            <ListenButton checkinId={latest.checkin_id} now={player.now} onPlay={player.play} onStop={player.stop} label="Listen to today's check-in" />
+          )}
         </Card>
       )}
 
@@ -129,7 +139,9 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
                 {row.reasons.map((r) => (
                   <Body key={r}>• {r}</Body>
                 ))}
-                {detail && detail.date === row.date && <Detail result={detail} onReport={report} />}
+                {detail && detail.date === row.date && (
+                  <Detail result={detail} onReport={report} player={player} sharing={!!person?.share_recordings} />
+                )}
               </View>
             )}
           </Card>
@@ -182,6 +194,20 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
           />
         </Card>
       )}
+      {person && (
+        <Card>
+          <Text style={styles.settingTitle}>Check-in recordings: {person.share_recordings ? 'sent to you' : 'off'}</Text>
+          <Body muted>
+            When {person.name} finishes a check-in, you get a message and can listen to it: each question, then their answer.
+            Only with their OK.
+          </Body>
+          <BigButton
+            label={person.share_recordings ? 'Stop sending recordings' : 'Send me the recordings'}
+            kind="secondary"
+            onPress={() => setSharing(!person.share_recordings)}
+          />
+        </Card>
+      )}
       <Card>
         <Text style={styles.settingTitle}>Away tomorrow?</Text>
         <Body muted>A day off means no reminders and no missed check-in text.</Body>
@@ -201,7 +227,42 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
   );
 }
 
-function Detail({ result, onReport }: { result: Result; onReport: (different: boolean) => void }) {
+type Player = ReturnType<typeof useCheckinPlayer>;
+
+// Play or stop one check-in. While it plays, says which part is on.
+function ListenButton({ checkinId, now, onPlay, onStop, label }: {
+  checkinId: string;
+  now: NowPlaying;
+  onPlay: Player['play'];
+  onStop: () => void;
+  label: string;
+}) {
+  const playing = now?.checkinId === checkinId;
+  return (
+    <View style={{ marginTop: 12 }}>
+      <BigButton
+        label={playing ? '■  Stop' : `▶  ${label}`}
+        kind={playing ? 'secondary' : 'primary'}
+        onPress={() => (playing ? onStop() : onPlay(checkinId))}
+      />
+      {playing && <Body muted center>{now.step === 'question' ? 'Reading the question…' : 'Playing their answer…'}</Body>}
+    </View>
+  );
+}
+
+function Detail({ result, onReport, player, sharing }: {
+  result: Result;
+  onReport: (different: boolean) => void;
+  player: Player;
+  sharing: boolean;
+}) {
+  const [rec, setRec] = useState<Recording | null>(null);
+  useEffect(() => {
+    setRec(null);
+    if (sharing) player.load(result.checkin_id).then(setRec).catch(() => setRec(null));
+  }, [result.checkin_id, sharing]);
+  const recorded = new Set(rec?.parts.filter((p) => p.audio).map((p) => p.exercise_id));
+  const playingHere = player.now?.checkinId === result.checkin_id ? player.now.exerciseId : null;
   return (
     <View>
       <Text style={styles.section}>Did they seem different from their usual self?</Text>
@@ -237,8 +298,17 @@ function Detail({ result, onReport }: { result: Result; onReport: (different: bo
         </>
       )}
       <Text style={styles.section}>What they said</Text>
+      {recorded.size > 0 && (
+        <>
+          <ListenButton checkinId={result.checkin_id} now={player.now} onPlay={player.play} onStop={player.stop} label="Play the whole check-in" />
+          <Body muted>
+            Hearing an answer that sounds fine doesn't cancel the result. Confusion can come and go, so if you're worried,
+            call their doctor.
+          </Body>
+        </>
+      )}
       {result.items.map((it) => (
-        <View key={it.exercise_id} style={{ marginBottom: 10 }}>
+        <View key={it.exercise_id} style={[styles.answer, playingHere === it.exercise_id && styles.answerOn]}>
           <Text style={styles.q}>{it.prompt}</Text>
           <Text style={styles.a}>
             "{it.transcript || '(no answer)'}"
@@ -248,6 +318,12 @@ function Detail({ result, onReport }: { result: Result; onReport: (different: bo
               ? '  (one month may have been misheard)'
               : it.misheard ? "  (couldn't make this out)" : ''}
           </Text>
+          {recorded.has(it.exercise_id) && (
+            <QuietButton
+              label={playingHere === it.exercise_id ? '■ Stop' : '▶ Hear their answer'}
+              onPress={() => (playingHere === it.exercise_id ? player.stop() : player.play(result.checkin_id, { only: it.exercise_id }))}
+            />
+          )}
         </View>
       ))}
       <Body muted>
@@ -278,4 +354,6 @@ const styles = StyleSheet.create({
   settingTitle: { fontSize: type.body, fontWeight: '800', color: colors.text, marginBottom: 6 },
   q: { fontSize: type.small, color: colors.muted },
   a: { fontSize: type.body, color: colors.text },
+  answer: { marginBottom: 10, paddingLeft: 10, borderLeftWidth: 4, borderLeftColor: 'transparent' },
+  answerOn: { borderLeftColor: colors.primary },
 });

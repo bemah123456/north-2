@@ -63,6 +63,7 @@ export type Person = {
   family_phone: string | null;
   evening_checkin: boolean;
   evening_time: string;
+  share_recordings: boolean; // send the family each check-in's recording when it's done
 };
 
 export type Change = {
@@ -102,6 +103,30 @@ export type DayRow = {
 
 export type Alert = { date: string; kind: string; sent_at: string; delivered: number; message: string; was_real: number | null };
 
+// A check-in to listen back to: every question in order, what the app
+// heard, and the recording's path on the server (null when it was typed, or
+// sharing is off).
+export type Recording = {
+  checkin_id: string;
+  date: string;
+  session: Session;
+  shared: boolean;
+  parts: { exercise_id: string; prompt: string; transcript: string; correct: boolean | null; correct_items: number | null; out_of: number | null; audio: string | null }[];
+};
+
+// Where the player should fetch a recording from. Phones send the token as
+// a header; a web browser's audio element can't, so the clip is fetched
+// first and played from memory.
+export async function audioSource(path: string): Promise<string | { uri: string; headers?: Record<string, string> }> {
+  const uri = `${BASE}${path}`;
+  if (!TOKEN) return uri;
+  if (Platform.OS === 'web') {
+    const res = await fetch(uri, { headers: { Authorization: `Bearer ${TOKEN}` } });
+    return URL.createObjectURL(await res.blob());
+  }
+  return { uri, headers: { Authorization: `Bearer ${TOKEN}` } };
+}
+
 export type AnswerCheck = { ask_again: boolean; noisy: boolean };
 
 // One answer: a recording (phone) or typed text (web demo, or no mic).
@@ -135,7 +160,7 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  createPerson: (p: Omit<Person, 'id' | 'family_name' | 'evening_checkin' | 'evening_time'> & { family_name?: string }) =>
+  createPerson: (p: Omit<Person, 'id' | 'family_name' | 'evening_checkin' | 'evening_time' | 'share_recordings'> & { family_name?: string }) =>
     call<Person>('/people', { method: 'POST', body: JSON.stringify(p) }),
   getPerson: (id: string) => call<Person>(`/people/${id}`),
   updatePerson: (id: string, changes: Partial<Person> & { senior_push_token?: string; family_push_token?: string }) =>
@@ -143,6 +168,7 @@ export const api = {
   today: (id: string) => call<TodayPlan>(`/people/${id}/today`),
   days: (id: string) => call<{ person: Person; days: DayRow[]; alerts: Alert[] }>(`/people/${id}/days`),
   checkin: (checkinId: string) => call<Result>(`/checkins/${checkinId}`),
+  recording: (checkinId: string) => call<Recording>(`/checkins/${checkinId}/recording`),
   familyReport: (checkinId: string, different: boolean) =>
     call<Result>(`/checkins/${checkinId}/family-report`, { method: 'POST', body: JSON.stringify({ different }) }),
   dayOff: (id: string, date: string, off: boolean) =>

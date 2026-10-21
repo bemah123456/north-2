@@ -23,7 +23,7 @@ def send(person: dict, action: dict) -> bool:
         return False
     if action["to"] == "senior":
         return _push(person.get("senior_push_token"), "Daily check-in", action["message"])
-    delivered = _push(person.get("family_push_token"), "Check-in alert", action["message"])
+    delivered = _push(person.get("family_push_token"), action.get("title", "Check-in alert"), action["message"])
     return _sms(person.get("family_phone"), action["message"]) or delivered
 
 
