@@ -29,7 +29,7 @@ A voice check-in that helps families catch delirium in older relatives early. Th
   - #23: senior home screen notices the evening check-in opening; real birth dates at setup; greeting no longer says "Good morning" in the afternoon.
   - #25: with a check-in time of 21:00 or later, the family alert falls after midnight and was never sent; now it is.
   - #28: split numbers ("9-5" for 95, "2000 in 26") are read whole, impossible ages are asked again, and a birthday with one dropped digit goes to a person; from the accented-voice test in PR #27 (healthy answers scored wrong 12% to about 1%).
-  - #19 and #20 both add tests to `server/tests/test_api.py`, so whichever merges second needs a small conflict fix.
+  - All of these merge together cleanly in any order; together they pass 106 server tests and the app typecheck (checked 2026-10-21).
 
 ## Waiting on the user
 
