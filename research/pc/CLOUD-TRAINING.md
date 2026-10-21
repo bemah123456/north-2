@@ -28,8 +28,8 @@ Without the month hint, round 2 has the same word errors but 3/42 false positive
   (`next_round.py`: lowest quiet + background-talk WER among models scored in the cloud), then scores the new model.
   It is kept as the new best only if its combined score is lower. Checkpoints every 50 steps, so rerunning
   the same command after a restart resumes.
-- The round 2 model was re-scored in the cloud first (`comparison_cloud_baseline.md`) so every later round
-  is compared on the same machine and software.
+- The round 2 model was re-scored in the cloud first (`training/out/comparison_cloud_baseline.md`): same 8.3% quiet,
+  12.9% background talk and same probe results as on the PC, so the copied model and test set are intact.
 - On CPU, training the whole model takes about 80 s per 8 clips here (4x the PC). Freezing the encoder
   (`--freeze-encoder`) brings that to about 18 s, so cloud rounds train the decoder, which is where months
   and numbers get written out.
