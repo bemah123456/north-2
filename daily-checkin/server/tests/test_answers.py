@@ -101,3 +101,35 @@ def test_one_month_dropped():
     assert not A.one_month_dropped("December November October July June May April")  # two missing
     assert not A.one_month_dropped("December November October")  # stopped early
     assert not A.one_month_dropped("January February March April May June July")  # forwards
+
+
+# Slips found by testing healthy answers in accented synthetic voices
+# (research/cloud-4at-asr, PR #27).
+def test_split_numbers_are_read_whole():
+    old = date(1931, 3, 14)  # 95 on TODAY
+    assert A.check_age("9-5", old, TODAY) is True
+    assert A.check_age("I'm 9 to 5", old, TODAY) is True
+    assert A.check_year("2000 in 26", TODAY) is True
+    assert A.check_year("20, 26", TODAY) is True
+    assert A.check_year("2000 in 25", TODAY) is False
+
+
+@pytest.mark.parametrize("heard", ["721", "I made a 7", "295"])
+def test_impossible_age_is_asked_again(heard):
+    assert A.misheard("age", heard)
+
+
+def test_possible_ages_and_dont_know_are_not_misheard():
+    assert not A.misheard("age", "seventy")
+    assert not A.misheard("age", "I don't know, 5 maybe")
+
+
+def test_dropped_digit_in_a_birthday_goes_to_a_person():
+    birth = date(1938, 2, 28)
+    assert A.check_dob("February the 20th, 1938", birth) is None
+    assert A.check_dob("February 28th 1930", birth) is None
+    assert A.check_dob("February 2nd 1938", birth) is None
+    # Wrong month, or a day that isn't a slip, is still wrong.
+    assert A.check_dob("March 28th 1938", birth) is False
+    assert A.check_dob("February 14th 1938", birth) is False
+    assert A.check_dob("February 28th 1950", birth) is False

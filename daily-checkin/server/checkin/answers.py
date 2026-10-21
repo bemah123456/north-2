@@ -171,8 +171,18 @@ def age_on(birth: date, today: date) -> int:
     return today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
 
 
+# Speech-to-text splits some numbers: "2000 in 26" or "20, 26" for 2026,
+# and "9-5" or "9 to 5" for ninety-five.
+SPLIT_YEAR = re.compile(r"\b(?:2000\s*(?:in|and|&|n)?\s*|20\s*,\s*0?)(\d\d)\b", re.I)
+SPLIT_AGE = re.compile(r"\b([2-9])\s*(?:-|to|too)\s*([0-9])\b", re.I)
+
+
+def _join_age(answer: str) -> str:
+    return SPLIT_AGE.sub(r"\1\2", answer)
+
+
 def check_year(answer: str, today: date) -> bool | None:
-    all_nums = numbers(normalize(answer))
+    all_nums = numbers(normalize(SPLIT_YEAR.sub(r"20\1", answer)))
     nums = [n for n in all_nums if n >= 1900]
     if not nums:
         # "twenty six, I think": a bare two-digit year that matches.
@@ -181,7 +191,7 @@ def check_year(answer: str, today: date) -> bool | None:
 
 
 def check_age(answer: str, birth: date, today: date) -> bool | None:
-    nums = [n for n in numbers(normalize(answer)) if 40 <= n <= 120]
+    nums = [n for n in numbers(normalize(_join_age(answer))) if 40 <= n <= 120]
     if not nums:
         return False
     # The AMT4 wants the exact age; we allow the one-year slip around a
@@ -208,7 +218,16 @@ def check_dob(answer: str, birth: date) -> bool | None:
     year_ok = birth.year in years if years else None
     if month_ok and day_ok and year_ok:
         return True
-    if not month_ok or (days and not day_ok) or year_ok is False:
+    if not month_ok:
+        return False
+    # The right day or year with its last digit dropped ("February the
+    # 20th" for the 28th, "1930" for 1938) is a speech-to-text slip far
+    # more often than a wrong birthday, so a person checks it.
+    day_slip = bool(days) and not day_ok and any(
+        (d % 10 == 0 and d // 10 == birth.day // 10) or d == birth.day // 10 for d in days)
+    year_slip = bool(years) and not year_ok and any(
+        y % 10 == 0 and y // 10 == birth.year // 10 for y in years)
+    if (days and not day_ok and not day_slip) or (year_ok is False and not year_slip):
         return False
     return None
 
@@ -240,8 +259,12 @@ def misheard(kind: str, answer: str) -> bool:
     if kind == "digit_span":
         return not digits_said(answer) and not DONT_KNOW.search(answer)
     if kind in ("age", "year", "dob"):
-        t = normalize(answer)
+        t = normalize(_join_age(answer) if kind == "age" else answer)
         if not numbers(t) and not (kind == "dob" and months_in(t)) and not DONT_KNOW.search(t):
+            return True
+        # An age heard only as single digits or an impossible number ("I
+        # made a 7", "721" for seventy-one) was misheard, not a wrong age.
+        if kind == "age" and not DONT_KNOW.search(t) and not any(10 <= n <= 120 for n in numbers(t)):
             return True
     return False
 
