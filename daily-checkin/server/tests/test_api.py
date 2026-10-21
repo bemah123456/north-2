@@ -60,6 +60,7 @@ def test_full_day(client):
 
     fam = client.post(f"/checkins/{result['checkin_id']}/family-report", json={"different": True}).json()
     assert fam["headline"] == "Call their doctor today"
+    assert fam["checkin_id"] == result["checkin_id"]  # the app reports again with it
     assert fam["reasons"][0] == "family says they seem different today"
     undo = client.post(f"/checkins/{result['checkin_id']}/family-report", json={"different": False}).json()
     assert undo["headline"] == "Keep an eye on it"

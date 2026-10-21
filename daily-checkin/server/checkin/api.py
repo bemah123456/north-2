@@ -321,7 +321,7 @@ def family_report(cid: str, body: FamilyReport) -> dict:
         raise HTTPException(404, "No such check-in")
     result = apply_family_report(c["result"], body.different)
     store.update_checkin_result(cid, result, body.different)
-    return result
+    return result | {"checkin_id": cid}
 
 
 @app.get("/checkins/{cid}", dependencies=[Depends(auth)])

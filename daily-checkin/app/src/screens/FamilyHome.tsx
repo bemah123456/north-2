@@ -12,10 +12,14 @@ function niceDate(iso: string) {
   return d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
 }
 
-function tomorrow() {
-  const d = new Date();
+// The day after `today` (YYYY-MM-DD). Pass the senior's today from the
+// server's day rows, since the family may be in another time zone; this
+// phone's local date is the fallback. Never toISOString, which is UTC.
+function tomorrow(today?: string) {
+  const d = today ? new Date(`${today}T12:00:00`) : new Date();
   d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 export default function FamilyHome({ personId, onSignOut }: { personId: string; onSignOut: () => void }) {
@@ -26,6 +30,7 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
   const [detail, setDetail] = useState<Result | null>(null);
   const [error, setError] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const [dayOff, setDayOff] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -186,13 +191,16 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
         <Text style={styles.settingTitle}>Away tomorrow?</Text>
         <Body muted>A day off means no reminders and no missed check-in text.</Body>
         <BigButton
-          label="Mark tomorrow as a day off"
+          label={dayOff ? 'Undo the day off' : 'Mark tomorrow as a day off'}
           kind="secondary"
           onPress={async () => {
-            await api.dayOff(personId, tomorrow(), true);
+            const day = dayOff ?? tomorrow(days[0]?.date);
+            await api.dayOff(personId, day, !dayOff);
+            setDayOff(dayOff ? null : day);
             load();
           }}
         />
+        {!!dayOff && <Body>{niceDate(dayOff)} is a day off.</Body>}
       </Card>
       <Body muted>Screening only, not a diagnosis. If you're worried, call their doctor.</Body>
       <QuietButton label="Refresh" onPress={load} />
