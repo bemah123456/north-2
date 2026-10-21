@@ -92,7 +92,10 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
 
   useEffect(() => {
     if (!exercises.length) return;
-    if (started) ask(exercises[index]);
+    if (started) {
+      setTyped('');
+      ask(exercises[index]);
+    }
     else if (useTyping) setStarted(true);
     else checkRoom();
   }, [exercises, index, started]);
@@ -145,7 +148,6 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
   }, [phase]);
 
   function ask(ex: Exercise, preface = '') {
-    setTyped('');
     setPhase('speaking');
     const myAsk = ++askId.current;
     const begin = () => {
@@ -329,7 +331,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
     return (
       <Screen footer={<BigButton label="Back to home" onPress={onFinished} />}>
         <Title>Sorry, something went wrong</Title>
-        <Body>Your family can still see that you tried today. You can try again later.</Body>
+        <Body>Your answers weren't saved. Please try again later.</Body>
         <Body muted>{error}</Body>
       </Screen>
     );
