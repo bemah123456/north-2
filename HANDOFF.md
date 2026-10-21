@@ -1,6 +1,6 @@
 # Handoff
 
-Last updated 2026-10-21 (PR #18). A short, current summary of North 2. Every piece of finished work updates this file in the same pull request.
+Last updated 2026-10-21 (PR #24). A short, current summary of North 2. Every piece of finished work updates this file in the same pull request.
 
 ## Goal
 
@@ -19,13 +19,22 @@ A voice check-in that helps families catch delirium in older relatives early. Th
 
 - PC training round 2 is finished: Whisper small v2 (trained with background talk mixed in, 31,500 clips from 454 speakers over 60) gets 8.3% word errors in quiet, the same as v1, with month/number recall 37/39. The background-talk comparison (stock small, Distil-Whisper, tuned v1 and v2) is running on the PC, about 1.5 hours left as of 2026-10-21 02:41 UTC; results go to `research/pc/training/out/comparison_round2.md`. Earlier run: with background talk, tuned small got 22.9% word errors vs 32.9% for stock. The PC side's own notes: `research/pc/HANDOFF-pc.md`.
 - Rerunning the voice-change test on unscripted speech from people over 60 (Santa Barbara Corpus), once the PC thread delivers it. All voice tests so far use read or synthetic speech.
-- PR #16: brings the home test plan (`daily-checkin/HOME-TESTING.md`) up to date with the merged app.
+- Open PRs from the hackathon build thread, all with green checks and waiting on the user's typed merge line in that thread:
+  - #16: brings the home test plan (`daily-checkin/HOME-TESTING.md`) up to date with the merged app.
+  - #17: copies of the pitch deck, pitch script and one-page summary in `daily-checkin/submission/` (the live versions are Claude artifacts: deck https://claude.ai/artifact/NSYfpvN1PXQqLioYZnZRzV, script https://claude.ai/artifact/CVy5eqNcaKWJTkT1Qtn5bJ, summary https://claude.ai/artifact/C9ZRMchkCXuRyZsPstwZ8x).
+  - #19: server survives bad settings and broken recordings; no "missed" text on setup day; worded hand scores don't crash the report.
+  - #20: a check-in that runs past midnight is scored against its own questions (it gave "call the doctor" to healthy answers); one dropped digit costs one point, not two.
+  - #21: family view can undo "they seem different"; "day off tomorrow" marks the right day.
+  - #22: malformed check-ins get a clear 400 instead of a 500; evening ratings count in the testing report.
+  - #23: senior home screen notices the evening check-in opening; real birth dates at setup; greeting no longer says "Good morning" in the afternoon.
+  - #19 and #20 both add tests to `server/tests/test_api.py`, so whichever merges second needs a small conflict fix.
+- Known, not fixed yet: with a check-in time of 21:00 or later, the 3-hour family alert falls after midnight and is never sent.
 
 ## Waiting on the user
 
 - In the PC thread, type "yes, download and share the Santa Barbara list" so the unscripted older-speaker data can be used.
 - Team names for the hackathon, and a yes to make the code public.
-- A yes to merge PR #16.
+- To merge the hackathon build PRs, the user types "merge PRs 16, 17, 19, 20, 21, 22 and 23" in that thread (relayed approval is blocked).
 - For a store release: an Expo account, where to host the server, Apple/Google developer accounts, and the medical-device wording (see `daily-checkin/LAUNCH.md`).
 
 ## On hold
