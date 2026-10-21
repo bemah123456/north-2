@@ -42,7 +42,7 @@ from transformers import WhisperForConditionalGeneration, WhisperProcessor  # no
 
 from common import KEY_WORDS, SR, load_audio, normalise, read_manifest  # noqa: E402
 from compare_models import key_stats, speaker_bootstrap_wer  # noqa: E402
-from finetune_whisper import augment  # noqa: E402
+from finetune_whisper import augment, babble, mix_at_snr  # noqa: E402
 
 SMOKE = os.environ.get("SMOKE") == "1"
 DATA = Path(os.environ.get("DATA_DIR", "/tmp/data"))
@@ -162,6 +162,17 @@ def write_report(extra=""):
 
 # ---------- training ----------
 
+def harder_talk(audio, rows, rng, talk=0.65, lo=0.0, hi=10.0):
+    """Like augment(), but more clips get background talk, and louder (0-10 dB), since a TV
+    behind the speaker is what still trips the app up."""
+    r = rng.random()
+    if r < talk:
+        return mix_at_snr(audio, babble(rows, rng, int(rng.integers(1, 4))), rng.uniform(lo, hi))
+    if r < talk + 0.1:
+        return mix_at_snr(audio, rng.standard_normal(len(audio)).astype(np.float32), rng.uniform(10, 25))
+    return audio
+
+
 class Clips(torch.utils.data.Dataset):
     """One item per (step, slot): the clip, with background talk or hiss mixed in when asked."""
 
@@ -175,7 +186,8 @@ class Clips(torch.utils.data.Dataset):
         r = self.rows[self.plan[i]]
         audio = load_audio(r["path"])
         if self.aug:
-            audio = augment(audio, self.rows, np.random.default_rng(self.seed * 1_000_003 + i))
+            mix = harder_talk if self.aug == "harder" else augment
+            audio = mix(audio, self.rows, np.random.default_rng(self.seed * 1_000_003 + i))
         return audio, r["sentence"]
 
 
@@ -252,10 +264,39 @@ def load(path):
 
 # ---------- main ----------
 
+def next_rounds(start, rounds):
+    """Further rounds from a saved model (START_FROM), each scored the same way. The best is
+    kept only if it beats the starting model."""
+    ts = TestSet()
+    s = lambda n: max(10, n // 100) if SMOKE else n  # noqa: E731
+    model, proc = load(start)
+    start_label = f"start: {os.environ.get('START_LABEL', start)}"
+    score(start_label, model, proc, ts)
+    candidates = {start_label: Path(start)}
+    for spec in rounds:
+        model, proc = load(start)
+        train(model, proc, manifest(spec.get("manifest", "train_all.csv")), s(spec["steps"]), spec["lr"],
+              aug=spec.get("aug", True), key_frac=spec.get("key_frac", 0.0), seed=spec["seed"])
+        score(spec["label"], model, proc, ts)
+        candidates[spec["label"]] = save(model, proc, spec["name"])
+    best = min((r for r in RESULTS if r["label"] in candidates), key=lambda r: r["sum"])
+    start_r = RESULTS[0]
+    won = best["label"] != start_label
+    verdict = (f"Best: **{best['label']}** ({best['quiet']:.1%} quiet + {best['talk']:.1%} talk = {best['sum']:.1%}; "
+               f"start = {start_r['sum']:.1%}). " + ("It beats the start." if won else "Nothing beat the start; no new model."))
+    log(verdict)
+    write_report(verdict)
+    if won:
+        export(candidates[best["label"]], best, ts)
+    log("DONE")
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     log("device", DEV, torch.cuda.get_device_name(0) if DEV == "cuda" else "")
     build_data()
+    if os.environ.get("START_FROM"):
+        return next_rounds(os.environ["START_FROM"], json.loads(os.environ["ROUNDS"]))
     ts = TestSet()
     s = lambda n: max(10, n // 100) if SMOKE else n  # noqa: E731
 
@@ -297,9 +338,13 @@ def main():
     log(verdict)
     write_report(verdict)
 
-    # Keep the winner, 16-bit, plus an int8 copy for faster-whisper.
+    export(candidates[best["label"]], best, ts)
+
+
+def export(path, best, ts):
+    """Keep the winner, 16-bit, plus an int8 copy for faster-whisper."""
     final = OUT / "whisper-small-best-fp16"
-    model, proc = load(candidates[best["label"]])
+    model, proc = load(path)
     model.half().save_pretrained(final)
     proc.save_pretrained(final)
     (final / "SCORES.json").write_text(json.dumps(best, default=float, indent=1))

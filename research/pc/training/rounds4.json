@@ -1,0 +1,6 @@
+[
+ {"name": "round4a", "label": "round 4a: gentle polish (+600 steps, lr 2e-6, months/numbers 35%)",
+  "steps": 600, "lr": 2e-6, "aug": true, "key_frac": 0.35, "seed": 41},
+ {"name": "round4b", "label": "round 4b: louder background talk on 65% of clips (+900 steps, lr 3e-6, months/numbers 35%)",
+  "steps": 900, "lr": 3e-6, "aug": "harder", "key_frac": 0.35, "seed": 42}
+]
