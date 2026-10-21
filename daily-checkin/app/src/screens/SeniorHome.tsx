@@ -43,7 +43,12 @@ export default function SeniorHome({ personId, onStart, onSignOut }: {
   useEffect(() => {
     load();
     const sub = AppState.addEventListener('change', (s) => s === 'active' && load());
-    return () => sub.remove();
+    // A phone left open on this screen still notices the evening check-in opening.
+    const timer = setInterval(load, 5 * 60 * 1000);
+    return () => {
+      sub.remove();
+      clearInterval(timer);
+    };
   }, [load]);
 
   if (confirmSignOut) {

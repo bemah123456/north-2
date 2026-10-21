@@ -21,7 +21,7 @@ Done in this PR: app IDs (`com.north2.dailycheckin`), build profiles in `app/eas
 | --- | --- |
 | Make a free Expo account at expo.dev; Claude can't sign up for you | You |
 | `cd app && npx eas-cli login && npx eas-cli init` (links the project to your account, adds a project id to `app.json`) | You, or Claude on your PC once you're logged in |
-| Put the server somewhere phones can reach over HTTPS. Free for testing: run it on your PC and expose it with `cloudflared tunnel --url http://localhost:8000` (no account; the address changes each run, so type it into the app's "Server: … (change)" link) | You pick where |
+| Put the server somewhere phones can reach over HTTPS. Free for testing: run it on your PC and expose it with `cloudflared tunnel --url http://localhost:8000` (no account; the address changes each run, so type it into "Server settings" at the bottom of the app's first screen) | You pick where |
 | Android test build: `npx eas-cli build --profile preview --platform android`. Gives an APK link testers install directly. Free tier, waits in a queue | Claude, after you log in |
 | iPhone test build: needs an Apple Developer account ($99/year). Until then iPhone testers keep using Expo Go | You decide (money) |
 

@@ -35,7 +35,7 @@ class Exercise:
 
 
 GREETINGS = [
-    "Good morning! Tell me how you slept and what you have planned today.",
+    "Hello! Tell me how you slept and what you have planned today.",
     "Hello! How are you feeling today, and what did you have for breakfast?",
     "Hi there! Tell me a little about how your day is going so far.",
     "Good day! What's the weather like where you are, and how are you feeling?",
