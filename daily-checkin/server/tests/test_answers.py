@@ -109,6 +109,8 @@ def test_split_numbers_are_read_whole():
     old = date(1931, 3, 14)  # 95 on TODAY
     assert A.check_age("9-5", old, TODAY) is True
     assert A.check_age("I'm 9 to 5", old, TODAY) is True
+    assert A.check_age("nine to five years old", old, TODAY) is True
+    assert A.check_age("Nine-five", old, TODAY) is True
     assert A.check_year("2000 in 26", TODAY) is True
     assert A.check_year("20, 26", TODAY) is True
     assert A.check_year("2000 in 25", TODAY) is False

@@ -172,13 +172,20 @@ def age_on(birth: date, today: date) -> int:
 
 
 # Speech-to-text splits some numbers: "2000 in 26" or "20, 26" for 2026,
-# and "9-5" or "9 to 5" for ninety-five.
+# and "9-5", "9 to 5" or "nine to five" for ninety-five.
 SPLIT_YEAR = re.compile(r"\b(?:2000\s*(?:in|and|&|n)?\s*|20\s*,\s*0?)(\d\d)\b", re.I)
-SPLIT_AGE = re.compile(r"\b([2-9])\s*(?:-|to|too)\s*([0-9])\b", re.I)
+_DIGIT_WORDS = {w: str(i) for i, w in enumerate(
+    ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"])}
+_D = r"([0-9]|" + "|".join(_DIGIT_WORDS) + ")"
+SPLIT_AGE = re.compile(rf"\b{_D}\s*(?:-|to|too)\s*{_D}\b", re.I)
 
 
 def _join_age(answer: str) -> str:
-    return SPLIT_AGE.sub(r"\1\2", answer)
+    """"9-5", "9 to 5" or "nine to five" is 95; "one to two" is left alone."""
+    def join(m):
+        a, b = (_DIGIT_WORDS.get(g.lower(), g) for g in m.groups())
+        return a + b if a not in "01" else m.group(0)
+    return SPLIT_AGE.sub(join, answer)
 
 
 def check_year(answer: str, today: date) -> bool | None:
