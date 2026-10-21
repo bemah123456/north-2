@@ -164,17 +164,20 @@ def page(person: dict, checkin: dict, items: list[dict], base: str) -> str:
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex"><title>{name}'s {when}, {e(checkin["local_date"])}</title>
 <style>
-:root{{--bg:#F6F2EC;--card:#fff;--text:#1E1B16;--muted:#5C564D;--primary:#17594A;--line:#DDD5C8}}
-@media (prefers-color-scheme:dark){{:root{{--bg:#14120F;--card:#1F1C18;--text:#F3EEE6;--muted:#BDB4A6;--primary:#7FCFB4;--line:#3A352E}}}}
+:root{{--bg:#F4F8FB;--card:#fff;--text:#0F2236;--muted:#3A4B5E;--primary:#1A457D;--on-primary:#fff;--line:#D3DEE8}}
+@media (prefers-color-scheme:dark){{:root{{--bg:#0E1A28;--card:#16263A;--text:#EAF1F8;--muted:#B5C3D2;--primary:#8FC2F0;--on-primary:#0E1A28;--line:#2B3E55}}}}
 body{{margin:0;background:var(--bg);color:var(--text);font:20px/1.5 -apple-system,system-ui,sans-serif}}
+.brand{{display:flex;align-items:center;gap:10px;margin:0 0 18px;font-weight:800;font-size:22px;color:var(--primary)}}
+.brand i{{width:28px;height:28px;border-radius:50%;background:linear-gradient(45deg,#1D7FD2,#40B5B2 55%,#59CBAD)}}
 main{{max-width:640px;margin:0 auto;padding:24px 16px 48px}}
 h1{{font-size:30px;line-height:1.2;margin:0 0 8px}}
 .result{{margin:0 0 16px}} .muted{{color:var(--muted);font-size:17px}}
-button{{font:inherit;font-weight:800;width:100%;padding:18px;border-radius:18px;border:0;background:var(--primary);color:var(--bg);cursor:pointer}}
+button{{font:inherit;font-weight:800;width:100%;padding:18px;border-radius:18px;border:0;background:var(--primary);color:var(--on-primary);cursor:pointer}}
 ol{{list-style:none;padding:0;margin:20px 0}} li{{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:14px 16px;margin-bottom:12px}}
 li.now{{border-color:var(--primary)}} .q{{font-weight:700;margin:0 0 8px}} audio{{width:100%}}
 .heard{{color:var(--muted);font-size:17px;margin:8px 0 0}} .none{{color:var(--muted);margin:0}}
 </style></head><body><main>
+<p class="brand"><i aria-hidden="true"></i>Clari</p>
 <h1>{name}'s {when}</h1>
 <p class="muted">{e(checkin["local_date"])}</p>
 {headline}

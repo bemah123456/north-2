@@ -5,8 +5,10 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { api, Person, server } from '../api';
-import { colors, maxScale, radius, space, type } from '../theme';
-import { BigButton, Body, Card, Choice, Field, Pick, QuietButton, Screen, Section, Title } from '../ui';
+import { LogoFull, NodeLine } from '../graphics';
+import { Rise } from '../motion';
+import { colors, font, maxScale, radius, space, type } from '../theme';
+import { BigButton, Body, BrandBar, Card, Choice, Field, Pick, QuietButton, Screen, Section, Title } from '../ui';
 
 const TIMES = [
   { value: '08:00', label: '8 am' },
@@ -85,6 +87,7 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
           </>
         }
       >
+        <BrandBar />
         <Title>Server address</Title>
         <Body>Only change this if whoever runs your check-in server gave you an address.</Body>
         <Field label="Address" value={address} onChangeText={setAddress} autoCapitalize="none" autoCorrect={false} keyboardType="url" />
@@ -94,20 +97,31 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
   }
   if (step === 'choose') {
     return (
-      <Screen footer={<QuietButton label="Server settings" onPress={() => setStep('server')} />}>
-        <Text style={styles.brand}>Daily check-in</Text>
-        <Title>A two-minute chat each day, so your family knows you're well.</Title>
-        <Section>Who is setting this up?</Section>
-        <Choice
-          title="I'm setting this up for a family member"
-          detail="For a parent or grandparent. Takes about a minute."
-          onPress={() => setStep('family')}
-        />
-        <Choice
-          title="My family gave me a code"
-          detail="Type in the code to connect this phone."
-          onPress={() => setStep('senior')}
-        />
+      <Screen backdrop="bright" footer={<QuietButton label="Server settings" onPress={() => setStep('server')} />}>
+        <Rise style={styles.hero}>
+          <LogoFull width={168} />
+          <Text style={styles.tagline} maxFontSizeMultiplier={maxScale.heading}>
+            A two-minute chat each day, so your family knows you're well.
+          </Text>
+          <NodeLine width={88} />
+        </Rise>
+        <Rise order={2}>
+          <Section>Who is setting this up?</Section>
+        </Rise>
+        <Rise order={3}>
+          <Choice
+            title="I'm setting this up for a family member"
+            detail="For a parent or grandparent. Takes about a minute."
+            onPress={() => setStep('family')}
+          />
+        </Rise>
+        <Rise order={4}>
+          <Choice
+            title="My family gave me a code"
+            detail="Type in the code to connect this phone."
+            onPress={() => setStep('senior')}
+          />
+        </Rise>
         <Body muted>Screening only, not a diagnosis.</Body>
       </Screen>
     );
@@ -122,6 +136,7 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
           </>
         }
       >
+        <BrandBar />
         <Title>Enter your code</Title>
         <Body>Your family has a short code for you. Type it in the box.</Body>
         <Field label="Your code" big value={code} onChangeText={setCode} autoCapitalize="none" autoCorrect={false} autoFocus />
@@ -139,8 +154,9 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
           </>
         }
       >
-        <Title>{created.name} is set up</Title>
-        <Body>On {created.name}'s phone, open this app, tap "My family gave me a code" and type:</Body>
+        <BrandBar />
+        <Rise><Title>{created.name} is set up</Title></Rise>
+        <Body>On {created.name}'s phone, open Clari, tap "My family gave me a code" and type:</Body>
         <View style={styles.codeBox}>
           {/* In groups of four so it's easy to read out and type. */}
           <Text selectable style={styles.code} maxFontSizeMultiplier={maxScale.tight} accessibilityLabel={`Code: ${created.id.split('').join(' ')}`}>
@@ -163,6 +179,7 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
         </>
       }
     >
+      <BrandBar label="Setup" />
       <Title>About them</Title>
       <Card>
         <Field label="What you call them (e.g. Mom, Grandpa Joe)" value={form.name} onChangeText={set('name')} />
@@ -186,7 +203,8 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
 }
 
 const styles = StyleSheet.create({
-  brand: { fontSize: type.body, fontWeight: '800', color: colors.primary, marginBottom: space.xs },
+  hero: { alignItems: 'center', gap: space.m, marginBottom: space.s },
+  tagline: { fontFamily: font.display, fontSize: type.big, lineHeight: 36, color: colors.text, textAlign: 'center', maxWidth: 420 },
   codeBox: { backgroundColor: colors.primarySoft, borderRadius: radius.l, borderWidth: 3, borderColor: colors.primary, paddingVertical: space.l, marginVertical: space.m, alignItems: 'center' },
-  code: { fontSize: type.huge, fontWeight: '800', letterSpacing: 2, color: colors.primary },
+  code: { fontFamily: font.display, fontSize: type.huge, letterSpacing: 2, color: colors.primary },
 });

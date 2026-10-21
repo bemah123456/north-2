@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Daily Check-in",
+    "name": "Clari",
     "slug": "daily-checkin",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,7 +11,7 @@
       "buildNumber": "1",
       "supportsTablet": true,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Daily Check-in listens to your answers so your family knows you're doing well.",
+        "NSMicrophoneUsageDescription": "Clari listens to your answers so your family knows you're doing well.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -19,7 +19,7 @@
       "package": "com.north2.dailycheckin",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -30,17 +30,25 @@
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "Clari"
     },
     "plugins": [
       [
         "expo-audio",
         {
-          "microphonePermission": "Daily Check-in listens to your answers so your family knows you're doing well."
+          "microphonePermission": "Clari listens to your answers so your family knows you're doing well."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "expo-font"
     ],
-    "scheme": "dailycheckin"
+    "scheme": "dailycheckin",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F4F8FB"
+    },
+    "primaryColor": "#1A457D"
   }
 }
