@@ -31,6 +31,10 @@ class TranscriptionUnavailable(RuntimeError):
     pass
 
 
+class UnreadableRecording(TranscriptionUnavailable):
+    """The clip itself is empty or broken; speech-to-text is fine."""
+
+
 def provider() -> str | None:
     p = os.environ.get("STT_PROVIDER")
     if p in ("local", "parakeet"):
@@ -83,7 +87,7 @@ def _decode_16k(audio: bytes):
             capture_output=True,
         )
     if p.returncode != 0:
-        raise TranscriptionUnavailable("Could not decode the recording: " + p.stderr.decode(errors="replace")[-200:])
+        raise UnreadableRecording("Could not decode the recording: " + p.stderr.decode(errors="replace")[-200:])
     return np.frombuffer(p.stdout, dtype=np.float32)
 
 

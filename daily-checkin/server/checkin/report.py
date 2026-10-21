@@ -9,6 +9,7 @@ Targets come from the plan's "What to measure" table.
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, datetime, timedelta, timezone
 from statistics import mean
 
@@ -21,6 +22,13 @@ TARGETS = {
     "avg_duration_s": 180,
     "avg_ease": 4.0,
 }
+
+
+def _hand_number(hand: str) -> int | None:
+    """The count in a hand score such as "4" or "4 in order"; None when
+    there isn't one, so a stray word skips the row instead of the report."""
+    m = re.search(r"\d+", hand)
+    return int(m.group()) if m else None
 
 
 def _attention_score(kind: str, correct_items: int) -> int:
@@ -51,9 +59,15 @@ def hand_agreement(checkins: list[dict], hands: dict[str, dict[str, str]]) -> di
                 if item.get("misheard"):
                     unsure += 1
                     continue
-                same = item["correct_items"] == int(hand)
+                n = _hand_number(hand)
+                if n is None:
+                    continue
+                same = item["correct_items"] == n
             elif item["part"] == "attention":
-                same = item["score"] == _attention_score(item["kind"], int(hand))
+                n = _hand_number(hand)
+                if n is None:
+                    continue
+                same = item["score"] == _attention_score(item["kind"], n)
             else:
                 continue
             if same:
