@@ -419,7 +419,23 @@ def days(pid: str) -> dict:
     since = min([date.fromisoformat(p["created_date"]), *results.keys()])
     last = max([now.date(), *results.keys()])
     rows = day_statuses(since, last, results, store.days_off(pid), now, p["checkin_time"])
+    notes = store.notes(pid)
+    for row in rows:
+        row["note"] = notes.get(row["date"], "")
     return {"person": p, "days": rows, "alerts": store.alerts(pid)[:20]}
+
+
+class DayNote(BaseModel):
+    text: str = Field(max_length=2000)
+
+
+@app.put("/people/{pid}/notes/{day}", dependencies=[Depends(auth)])
+def day_note(pid: str, day: date, body: DayNote) -> dict:
+    """The family's note on one day, shown in that day's digest. Empty text
+    removes it."""
+    person_or_404(pid)
+    store.set_note(pid, day.isoformat(), body.text, utcnow().isoformat())
+    return {"date": day.isoformat(), "note": body.text.strip()}
 
 
 @app.post("/people/{pid}/days-off", dependencies=[Depends(auth)])

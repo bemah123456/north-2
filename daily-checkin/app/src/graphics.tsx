@@ -16,7 +16,7 @@ const hidden = { accessibilityElementsHidden: true, importantForAccessibility: '
 // ---------- icons ----------
 
 export type IconName = 'check' | 'alert' | 'question' | 'dots' | 'dash' | 'mic' | 'speaker' | 'play' | 'stop'
-  | 'chevronRight' | 'chevronDown' | 'chevronUp';
+  | 'chevronRight' | 'chevronLeft' | 'chevronDown' | 'chevronUp';
 
 const ICONS: Record<IconName, string> = {
   check: 'M5 12.5l4.5 4.5L19 7.5',
@@ -29,6 +29,7 @@ const ICONS: Record<IconName, string> = {
   play: 'M8 5.5v13l10-6.5z',
   stop: 'M7 7h10v10H7z',
   chevronRight: 'M9.5 5.5L16 12l-6.5 6.5',
+  chevronLeft: 'M14.5 5.5L8 12l6.5 6.5',
   chevronDown: 'M5.5 9.5L12 16l6.5-6.5',
   chevronUp: 'M5.5 14.5L12 8l6.5 6.5',
 };
