@@ -22,9 +22,9 @@ export function toneOf(row: DayRow | undefined): Tone {
 }
 
 export const TONE: Record<Tone, { bg: string; fg: string; icon: IconName; label: string }> = {
-  red: { bg: colors.red, fg: '#FFFFFF', icon: 'alert', label: 'Concerning' },
-  yellow: { bg: '#FDEBBE', fg: colors.amber, icon: 'question', label: 'Keep an eye / unsure' },
-  green: { bg: colors.greenSoft, fg: colors.green, icon: 'check', label: 'Usual self' },
+  red: { bg: colors.red, fg: '#FFFFFF', icon: 'alert', label: '4+ · Call doctor' },
+  yellow: { bg: '#FDEBBE', fg: colors.amber, icon: 'question', label: '1–3 · Keep an eye' },
+  green: { bg: colors.greenSoft, fg: colors.green, icon: 'check', label: '0 · Usual self' },
   grey: { bg: colors.greySoft, fg: colors.grey, icon: 'dash', label: 'No check-in' },
 };
 
@@ -118,7 +118,6 @@ export function Calendar({ rows, onSelect }: { rows: DayRow[]; onSelect: (row: D
           </View>
         ))}
       </View>
-      <Text style={styles.hint}>The number is that day's score: 0 is their usual, 1 to 3 keep an eye on it, 4 or more call their doctor.</Text>
     </View>
   );
 }
@@ -139,5 +138,4 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   swatch: { width: 24, height: 24, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
   legendText: { fontFamily: font.bodyBold, fontSize: 15, color: colors.text },
-  hint: { fontFamily: font.body, fontSize: 15, lineHeight: 21, color: colors.muted, textAlign: 'center', marginTop: 4 },
 });

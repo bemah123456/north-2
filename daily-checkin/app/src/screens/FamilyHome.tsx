@@ -30,6 +30,50 @@ function tomorrow(today?: string) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+// One short line under a day's headline: what its score means.
+function bandLine(row: DayRow): string {
+  if (row.status === 'missed') return 'No check-in this day';
+  if (row.status === 'pending') return 'Not done yet';
+  if (row.status === 'day_off') return 'Day off';
+  if (row.status === 'possible_delirium') return '4 or more: call their doctor';
+  if (row.status === 'possible_impairment') return row.score ? '1 to 3: keep an eye on it' : 'Some change from their usual';
+  return row.unsure ? 'Some answers were hard to hear' : '0: their usual self';
+}
+
+const sentence = (r: string) => r.charAt(0).toUpperCase() + r.slice(1);
+
+// The score in a big circle (or the day's icon when there's no score).
+function ScoreBadge({ row, size = 76 }: { row: DayRow; size?: number }) {
+  const tone = toneOf(row);
+  return (
+    <View style={[styles.scoreBadge, { width: size, height: size, borderRadius: size / 2, backgroundColor: TONE_STRONG[tone] }]}>
+      {row.score != null ? (
+        <Text style={[styles.scoreBadgeText, { fontSize: size * 0.46 }]} maxFontSizeMultiplier={maxScale.tight}>{row.score}</Text>
+      ) : (
+        <Icon name={TONE[tone].icon} size={size * 0.46} color="#FFFFFF" weight={3} />
+      )}
+    </View>
+  );
+}
+
+// Clari's reasons as a tidy list, optionally only the first few.
+function ReasonList({ reasons, max, more }: { reasons: string[]; max?: number; more?: () => void }) {
+  const shown = max ? reasons.slice(0, max) : reasons;
+  return (
+    <View style={styles.reasons}>
+      {shown.map((r) => (
+        <View key={r} style={styles.reasonRow}>
+          <View style={styles.reasonDot} />
+          <Text style={styles.reasonText}>{sentence(r)}</Text>
+        </View>
+      ))}
+      {max != null && reasons.length > max && more && (
+        <QuietButton label={`${reasons.length - max} more in today's details`} onPress={more} />
+      )}
+    </View>
+  );
+}
+
 export default function FamilyHome({ personId, onSignOut }: { personId: string; onSignOut: () => void }) {
   const [person, setPerson] = useState<Person | null>(null);
   const [days, setDays] = useState<DayRow[]>([]);
@@ -39,7 +83,6 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
   const [day, setDay] = useState<DayRow | null>(null); // the day whose digest is open
   const [detail, setDetail] = useState<Result | null>(null);
   const [error, setError] = useState('');
-  const [showAll, setShowAll] = useState(false);
   const [dayOff, setDayOff] = useState<string | null>(null);
   const [editing, setEditing] = useState<Details | null>(null);
   const [editError, setEditError] = useState('');
@@ -174,7 +217,7 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
       <Screen key="messages" backdrop="calm" footer={tabBar}>
         <BrandBar label="Messages" />
         <Title center>Messages</Title>
-        <Body muted center>Texts Clari sent you about {person?.name ?? 'them'}.</Body>
+        <Body muted center>What Clari has sent you.</Body>
         {errorCard}
         {toFamily.length === 0 && (
           <View style={styles.empty}>
@@ -225,7 +268,7 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
         {person && (
           <>
             <Section center>Their details</Section>
-            <Body muted center>You entered these. Clari checks {person.name}'s answers against them every day.</Body>
+            <Body muted center>Clari checks their answers against these.</Body>
             <WhatClariChecks person={person} />
             <Card>
               <Text style={styles.settingTitle}>Code for their phone</Text>
@@ -234,7 +277,7 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
                 accessibilityLabel={`Code: ${person.id.split('').join(' ')}`}>
                 {person.id.match(/.{1,4}/g)?.join(' ')}
               </Text>
-              <BigButton label="Change their details" kind="secondary" onPress={() => setEditing(detailsFrom(person))} />
+              <BigButton label="Edit their details" kind="secondary" onPress={() => setEditing(detailsFrom(person))} />
             </Card>
             <Section center>Check-ins</Section>
           </>
@@ -243,8 +286,7 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
           <Card>
             <Text style={styles.settingTitle}>Evening check-in: {person.evening_checkin ? `on, at ${person.evening_time}` : 'off'}</Text>
             <Body muted center>
-              A one-minute second check-in in the evening, compared with the morning. Delirium often comes and goes
-              during the day, so a worse evening can show what one check-in misses.
+              A one-minute check-in each evening, to catch changes during the day.
             </Body>
             <BigButton
               label={person.evening_checkin ? 'Turn it off' : 'Turn it on'}
@@ -255,13 +297,12 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
         )}
         {person && (
           <Card>
-            <Text style={styles.settingTitle}>Check-in recordings: {person.share_recordings ? 'sent to you' : 'off'}</Text>
+            <Text style={styles.settingTitle}>Recordings: {person.share_recordings ? 'on' : 'off'}</Text>
             <Body muted center>
-              When {person.name} finishes a check-in, you get a message and can listen to it: each question, then their answer.
-              Only with their OK.
+              Hear each check-in once it's done. Only with their OK.
             </Body>
             <BigButton
-              label={person.share_recordings ? 'Stop sending recordings' : 'Send me the recordings'}
+              label={person.share_recordings ? 'Turn them off' : 'Turn them on'}
               kind="secondary"
               onPress={() => setSharing(!person.share_recordings)}
             />
@@ -269,9 +310,9 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
         )}
         <Card>
           <Text style={styles.settingTitle}>Away tomorrow?</Text>
-          <Body muted center>A day off means no reminders and no missed check-in text.</Body>
+          <Body muted center>No reminders or texts that day.</Body>
           <BigButton
-            label={dayOff ? 'Undo the day off' : 'Mark tomorrow as a day off'}
+            label={dayOff ? 'Undo the day off' : 'Make tomorrow a day off'}
             kind="secondary"
             onPress={async () => {
               const d = dayOff ?? tomorrow(days[0]?.date);
@@ -297,33 +338,29 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
         <Rise>
           <View style={[styles.today, { backgroundColor: TONE_SOFT[latestTone], borderColor: TONE_STRONG[latestTone] }]}>
             <Text style={styles.smallCaps}>Today</Text>
-            <View style={[styles.scoreBadge, { width: 64, height: 64, backgroundColor: TONE_STRONG[latestTone] }]}>
-              <Icon name={TONE[latestTone].icon} size={36} color="#FFFFFF" weight={3} />
-            </View>
+            <ScoreBadge row={latest} />
             <Text style={[styles.headline, { color: TONE_STRONG[latestTone] }]} maxFontSizeMultiplier={maxScale.heading}>
               {latest.headline}
             </Text>
-            {latest.score != null && <Text style={styles.scoreLine}>Score {latest.score}</Text>}
-            {(showAll ? latest.reasons : latest.reasons.slice(0, 3)).map((r) => (
-              <Text key={r} style={styles.reason}>{r}</Text>
-            ))}
-            {latest.reasons.length > 3 && (
-              <QuietButton
-                label={showAll ? 'Show fewer reasons' : `Show all ${latest.reasons.length} reasons`}
-                onPress={() => setShowAll(!showAll)}
-              />
+            <Text style={styles.band}>{bandLine(latest)}</Text>
+            {latest.checkin_id && latest.reasons.length > 0 && (
+              <ReasonList reasons={latest.reasons} max={2} more={() => openDay(latest)} />
             )}
             {latest.checkin_id && person?.share_recordings && alerts.some((a) => a.date === latest.date && a.kind === 'recording') && (
               <View style={{ alignSelf: 'stretch' }}>
                 <ListenButton checkinId={latest.checkin_id} now={player.now} onPlay={player.play} onStop={player.stop} label="Listen to today's check-in" />
               </View>
             )}
-            {latest.checkin_id && <QuietButton label="Open today's digest" onPress={() => openDay(latest)} />}
+            {latest.checkin_id && (
+              <View style={{ alignSelf: 'stretch' }}>
+                <BigButton label="See today's details" kind="secondary" onPress={() => openDay(latest)} />
+              </View>
+            )}
           </View>
         </Rise>
       )}
       <Section center>Every day</Section>
-      <Body muted center>Tap a day to see how it went, hear it, and add your notes.</Body>
+      <Body muted center>Tap a day for its details.</Body>
       <Rise order={2}>
         <Calendar rows={days} onSelect={openDay} />
       </Rise>
@@ -442,27 +479,16 @@ function DayDigest({ row, result, name, sharing, player, onReport, onSaveNote, o
       <Rise>
         <Text style={[styles.smallCaps, styles.center]}>{niceDate(row.date, true)}</Text>
         <View style={[styles.today, { backgroundColor: TONE_SOFT[toneKey], borderColor: strong }]}>
-          <View style={[styles.scoreBadge, { backgroundColor: strong }]}>
-            {row.score != null ? (
-              <Text style={styles.scoreBadgeText} maxFontSizeMultiplier={maxScale.tight}>{row.score}</Text>
-            ) : (
-              <Icon name={tone.icon} size={34} color="#FFFFFF" weight={3} />
-            )}
-          </View>
+          <ScoreBadge row={row} />
           <Text style={[styles.headline, { color: strong }]} maxFontSizeMultiplier={maxScale.heading}>{row.headline}</Text>
-          {row.score != null && (
-            <Text style={styles.scoreExplain}>Score {row.score}. 0 is their usual, 1 to 3 keep an eye on it, 4 or more call their doctor.</Text>
-          )}
-          {row.unsure && row.status === 'unlikely' && (
-            <Text style={styles.scoreExplain}>Some answers were hard to hear or need checking, so this day is marked yellow.</Text>
-          )}
+          <Text style={styles.band}>{bandLine(row)}</Text>
         </View>
       </Rise>
 
       {row.checkin_id && row.reasons.length > 0 && (
         <>
           <Section center>Clari's notes</Section>
-          {row.reasons.map((r) => <Text key={r} style={styles.reason}>{r}</Text>)}
+          <ReasonList reasons={row.reasons} />
         </>
       )}
 
@@ -541,8 +567,7 @@ function Detail({ result, onReport, player, sharing }: {
           <Section center>The conversation</Section>
           <ListenButton checkinId={result.checkin_id} now={player.now} onPlay={player.play} onStop={player.stop} label="Play the whole check-in" />
           <Body muted center>
-            Hearing an answer that sounds fine doesn't cancel the result. Confusion can come and go, so if you're worried,
-            call their doctor.
+            An answer that sounds fine doesn't cancel the result.
           </Body>
         </>
       )}
@@ -592,7 +617,7 @@ function Detail({ result, onReport, player, sharing }: {
       <Body muted center>
         {result.voice.measured
           ? result.voice.baseline_days >= 2
-            ? `Voice compared with their last ${result.voice.baseline_days} usual days.`
+            ? `Compared with their last ${result.voice.baseline_days} usual days.`
             : 'Still learning their usual voice (needs 2 check-ins).'
           : 'Typed answers, so voice was not measured.'}
         {result.needs_review ? ` ${result.needs_review} answer(s) need a person to check.` : ''}
@@ -606,11 +631,13 @@ const styles = StyleSheet.create({
   smallCaps: { fontFamily: font.bodyBold, fontSize: type.small, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.2 },
   today: { alignItems: 'center', gap: 10, borderRadius: radius.l, borderWidth: 2, padding: space.m, marginBottom: space.s },
   headline: { fontFamily: font.display, fontSize: type.big, lineHeight: 34, textAlign: 'center' },
-  scoreLine: { fontFamily: font.bodyBold, fontSize: type.small, color: colors.text },
-  reason: { fontFamily: font.body, fontSize: type.body, lineHeight: 30, color: colors.text, textAlign: 'center', marginBottom: 6 },
   scoreBadge: { width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center' },
   scoreBadgeText: { fontFamily: font.display, fontSize: 36, color: '#FFFFFF' },
-  scoreExplain: { fontFamily: font.body, fontSize: type.small, lineHeight: 26, color: colors.text, textAlign: 'center' },
+  band: { fontFamily: font.bodyBold, fontSize: type.small, color: colors.text, textAlign: 'center' },
+  reasons: { alignSelf: 'stretch', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: radius.m, paddingVertical: 10, paddingHorizontal: 14, gap: 8 },
+  reasonRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  reasonDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.muted, marginTop: 9 },
+  reasonText: { flex: 1, fontFamily: font.body, fontSize: type.small, lineHeight: 26, color: colors.text },
   pair: { flexDirection: 'row', gap: 12 },
   date: { fontFamily: font.bodyBold, fontSize: type.body, color: colors.text, marginBottom: 6 },
   settingTitle: { fontFamily: font.display, fontSize: type.body, color: colors.text, marginBottom: 6, textAlign: 'center' },
