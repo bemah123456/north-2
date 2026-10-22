@@ -4,7 +4,7 @@
 // family's own notes.
 
 import { useCallback, useEffect, useState } from 'react';
-import { AppState, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppState, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Alert, api, DayRow, Person, Recording, Result } from '../api';
 import { Calendar, TONE, TONE_SOFT, TONE_STRONG, toneOf } from '../calendar';
@@ -35,6 +35,7 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
   const [days, setDays] = useState<DayRow[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const player = useCheckinPlayer();
+  const [tab, setTab] = useState<Tab>('home');
   const [day, setDay] = useState<DayRow | null>(null); // the day whose digest is open
   const [detail, setDetail] = useState<Result | null>(null);
   const [error, setError] = useState('');
@@ -157,16 +158,141 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
 
   const latest = days[0];
   const latestTone = toneOf(latest);
+  // Only what was sent to the family; reminders to the older person stay out.
+  const toFamily = alerts.filter((a) => !a.kind.startsWith('reminder'));
+  const unanswered = alerts.filter((a) => a.kind.startsWith('missed') && a.was_real === null).length;
+  const tabBar = <TabBar tab={tab} onTab={setTab} badges={{ messages: unanswered }} />;
+  const errorCard = !!error && (
+    <Card tint={colors.amberSoft}>
+      <Body center>Can't reach the server right now.</Body>
+      <BigButton label="Try again" kind="secondary" onPress={load} />
+    </Card>
+  );
+
+  if (tab === 'messages') {
+    return (
+      <Screen key="messages" backdrop="calm" footer={tabBar}>
+        <BrandBar label="Messages" />
+        <Title center>Messages</Title>
+        <Body muted center>Texts Clari sent you about {person?.name ?? 'them'}.</Body>
+        {errorCard}
+        {toFamily.length === 0 && (
+          <View style={styles.empty}>
+            <Icon name="message" size={40} color={colors.muted} />
+            <Body muted center>No messages yet. When Clari texts you, you'll see it here too.</Body>
+          </View>
+        )}
+        {toFamily.map((a, i) => (
+          <Rise key={`${a.date}${a.kind}`} order={i}>
+            <Card>
+              <Text style={[styles.date, styles.center]}>{niceDate(a.date)}</Text>
+              <Body center>
+                {a.message}
+                {a.delivered ? '' : ' (not sent: test mode)'}
+              </Body>
+              {a.kind.startsWith('missed') &&
+                (a.was_real === null ? (
+                  <>
+                    <Body muted center>Was this a real concern?</Body>
+                    <View style={styles.pair}>
+                      <View style={{ flex: 1 }}>
+                        <BigButton label="Yes" kind="secondary" onPress={() => api.alertFeedback(personId, a.date, a.kind, true).then(load)} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <BigButton label="No, all fine" kind="secondary" onPress={() => api.alertFeedback(personId, a.date, a.kind, false).then(load)} />
+                      </View>
+                    </View>
+                  </>
+                ) : (
+                  <Body muted center>You said: {a.was_real ? 'a real concern' : 'all fine'}.</Body>
+                ))}
+              {a.kind === 'recording' && days.find((d) => d.date === a.date)?.checkin_id && (
+                <QuietButton label="Open that day's digest" onPress={() => { const d = days.find((r) => r.date === a.date); if (d) openDay(d); }} />
+              )}
+            </Card>
+          </Rise>
+        ))}
+      </Screen>
+    );
+  }
+
+  if (tab === 'settings') {
+    return (
+      <Screen key="settings" backdrop="calm" footer={tabBar}>
+        <BrandBar label="Settings" />
+        <Title center>Settings</Title>
+        {errorCard}
+        {person && (
+          <>
+            <Section center>Their details</Section>
+            <Body muted center>You entered these. Clari checks {person.name}'s answers against them every day.</Body>
+            <WhatClariChecks person={person} />
+            <Card>
+              <Text style={styles.settingTitle}>Code for their phone</Text>
+              <Body muted center>If their phone ever needs connecting again, they type:</Body>
+              <Text selectable style={styles.code} maxFontSizeMultiplier={maxScale.tight}
+                accessibilityLabel={`Code: ${person.id.split('').join(' ')}`}>
+                {person.id.match(/.{1,4}/g)?.join(' ')}
+              </Text>
+              <BigButton label="Change their details" kind="secondary" onPress={() => setEditing(detailsFrom(person))} />
+            </Card>
+            <Section center>Check-ins</Section>
+          </>
+        )}
+        {person && (
+          <Card>
+            <Text style={styles.settingTitle}>Evening check-in: {person.evening_checkin ? `on, at ${person.evening_time}` : 'off'}</Text>
+            <Body muted center>
+              A one-minute second check-in in the evening, compared with the morning. Delirium often comes and goes
+              during the day, so a worse evening can show what one check-in misses.
+            </Body>
+            <BigButton
+              label={person.evening_checkin ? 'Turn it off' : 'Turn it on'}
+              kind="secondary"
+              onPress={() => setEvening(!person.evening_checkin)}
+            />
+          </Card>
+        )}
+        {person && (
+          <Card>
+            <Text style={styles.settingTitle}>Check-in recordings: {person.share_recordings ? 'sent to you' : 'off'}</Text>
+            <Body muted center>
+              When {person.name} finishes a check-in, you get a message and can listen to it: each question, then their answer.
+              Only with their OK.
+            </Body>
+            <BigButton
+              label={person.share_recordings ? 'Stop sending recordings' : 'Send me the recordings'}
+              kind="secondary"
+              onPress={() => setSharing(!person.share_recordings)}
+            />
+          </Card>
+        )}
+        <Card>
+          <Text style={styles.settingTitle}>Away tomorrow?</Text>
+          <Body muted center>A day off means no reminders and no missed check-in text.</Body>
+          <BigButton
+            label={dayOff ? 'Undo the day off' : 'Mark tomorrow as a day off'}
+            kind="secondary"
+            onPress={async () => {
+              const d = dayOff ?? tomorrow(days[0]?.date);
+              await api.dayOff(personId, d, !dayOff);
+              setDayOff(dayOff ? null : d);
+              load();
+            }}
+          />
+          {!!dayOff && <Body center>{niceDate(dayOff)} is a day off.</Body>}
+        </Card>
+        <Body muted center>Screening only, not a diagnosis. If you're worried, call their doctor.</Body>
+        <QuietButton label="Change setup" onPress={onSignOut} />
+      </Screen>
+    );
+  }
+
   return (
-    <Screen backdrop="calm">
+    <Screen key="home" backdrop="calm" footer={tabBar}>
       <BrandBar label="Family view" />
       <Title center>{person?.name ?? 'Check-ins'}</Title>
-      {!!error && (
-        <Card tint={colors.amberSoft}>
-          <Body center>Can't reach the server right now.</Body>
-          <BigButton label="Try again" kind="secondary" onPress={load} />
-        </Card>
-      )}
+      {errorCard}
       {latest && (
         <Rise>
           <View style={[styles.today, { backgroundColor: TONE_SOFT[latestTone], borderColor: TONE_STRONG[latestTone] }]}>
@@ -196,104 +322,73 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
           </View>
         </Rise>
       )}
-
       <Section center>Every day</Section>
       <Body muted center>Tap a day to see how it went, hear it, and add your notes.</Body>
       <Rise order={2}>
         <Calendar rows={days} onSelect={openDay} />
       </Rise>
-
-      {alerts.length > 0 && (
-        <>
-          <Section center>Messages sent to you</Section>
-          {alerts.slice(0, 5).map((a) => (
-            <Card key={`${a.date}${a.kind}`}>
-              <Text style={[styles.date, styles.center]}>{niceDate(a.date)}</Text>
-              <Body center>
-                {a.message}
-                {a.delivered ? '' : ' (not sent: test mode)'}
-              </Body>
-              {a.kind.startsWith('missed') &&
-                (a.was_real === null ? (
-                  <>
-                    <Body muted center>Was this a real concern?</Body>
-                    <View style={styles.pair}>
-                      <View style={{ flex: 1 }}>
-                        <BigButton label="Yes" kind="secondary" onPress={() => api.alertFeedback(personId, a.date, a.kind, true).then(load)} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <BigButton label="No, all fine" kind="secondary" onPress={() => api.alertFeedback(personId, a.date, a.kind, false).then(load)} />
-                      </View>
-                    </View>
-                  </>
-                ) : (
-                  <Body muted center>You said: {a.was_real ? 'a real concern' : 'all fine'}.</Body>
-                ))}
-            </Card>
-          ))}
-        </>
-      )}
-
-      <Section center>Settings</Section>
-      {person && (
-        <Card>
-          <Text style={styles.settingTitle}>Their details</Text>
-          <WhatClariChecks person={person} />
-          <Body muted center>Code for their phone, if it ever needs connecting again:</Body>
-          <Text selectable style={styles.code} maxFontSizeMultiplier={maxScale.tight}
-            accessibilityLabel={`Code: ${person.id.split('').join(' ')}`}>
-            {person.id.match(/.{1,4}/g)?.join(' ')}
-          </Text>
-          <BigButton label="Change their details" kind="secondary" onPress={() => setEditing(detailsFrom(person))} />
-        </Card>
-      )}
-      {person && (
-        <Card>
-          <Text style={styles.settingTitle}>Evening check-in: {person.evening_checkin ? `on, at ${person.evening_time}` : 'off'}</Text>
-          <Body muted center>
-            A one-minute second check-in in the evening, compared with the morning. Delirium often comes and goes
-            during the day, so a worse evening can show what one check-in misses.
-          </Body>
-          <BigButton
-            label={person.evening_checkin ? 'Turn it off' : 'Turn it on'}
-            kind="secondary"
-            onPress={() => setEvening(!person.evening_checkin)}
-          />
-        </Card>
-      )}
-      {person && (
-        <Card>
-          <Text style={styles.settingTitle}>Check-in recordings: {person.share_recordings ? 'sent to you' : 'off'}</Text>
-          <Body muted center>
-            When {person.name} finishes a check-in, you get a message and can listen to it: each question, then their answer.
-            Only with their OK.
-          </Body>
-          <BigButton
-            label={person.share_recordings ? 'Stop sending recordings' : 'Send me the recordings'}
-            kind="secondary"
-            onPress={() => setSharing(!person.share_recordings)}
-          />
-        </Card>
-      )}
-      <Card>
-        <Text style={styles.settingTitle}>Away tomorrow?</Text>
-        <Body muted center>A day off means no reminders and no missed check-in text.</Body>
-        <BigButton
-          label={dayOff ? 'Undo the day off' : 'Mark tomorrow as a day off'}
-          kind="secondary"
-          onPress={async () => {
-            const d = dayOff ?? tomorrow(days[0]?.date);
-            await api.dayOff(personId, d, !dayOff);
-            setDayOff(dayOff ? null : d);
-            load();
-          }}
-        />
-        {!!dayOff && <Body center>{niceDate(dayOff)} is a day off.</Body>}
-      </Card>
-      <Body muted center>Screening only, not a diagnosis. If you're worried, call their doctor.</Body>
-      <QuietButton label="Refresh" onPress={load} />
-      <QuietButton label="Change setup" onPress={onSignOut} />
     </Screen>
+  );
+}
+
+type Tab = 'messages' | 'home' | 'settings';
+
+const TABS: { key: Tab; label: string; icon: 'home' | 'message' | 'gear' }[] = [
+  { key: 'messages', label: 'Messages', icon: 'message' },
+  { key: 'home', label: 'Home', icon: 'home' },
+  { key: 'settings', label: 'Settings', icon: 'gear' },
+];
+
+// Always on screen at the bottom: Messages on the left, Home (today and the
+// calendar) in the middle as a raised circle, Settings (including their
+// details) on the right. A number shows messages waiting for an answer.
+function TabBar({ tab, onTab, badges }: { tab: Tab; onTab: (t: Tab) => void; badges: Partial<Record<Tab, number>> }) {
+  return (
+    <View style={styles.tabBar} accessibilityRole="tablist">
+      {TABS.map((t) => {
+        const on = tab === t.key;
+        const badge = badges[t.key] ?? 0;
+        if (t.key === 'home') {
+          return (
+            <Pressable
+              key={t.key}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={t.label}
+              onPress={() => onTab(t.key)}
+              style={({ pressed }) => [styles.homeTab, pressed && { transform: [{ scale: 0.96 }] }]}
+            >
+              <View style={[styles.homeCircle, !on && styles.homeCircleOff]}>
+                <Icon name="home" size={34} color={on ? colors.primaryText : colors.primary} weight={2.6} />
+              </View>
+              <Text style={[styles.tabLabel, { color: colors.primary }]} maxFontSizeMultiplier={maxScale.tight}>{t.label}</Text>
+            </Pressable>
+          );
+        }
+        return (
+          <Pressable
+            key={t.key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={badge ? `${t.label}, ${badge} waiting` : t.label}
+            onPress={() => onTab(t.key)}
+            style={({ pressed }) => [styles.tab, on && styles.tabOn, pressed && { opacity: 0.7 }]}
+          >
+            <View>
+              <Icon name={t.icon} size={28} color={on ? colors.primary : colors.muted} weight={on ? 2.6 : 2.2} />
+              {badge > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText} maxFontSizeMultiplier={1}>{badge}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={[styles.tabLabel, on && { color: colors.primary }]} numberOfLines={1} maxFontSizeMultiplier={maxScale.tight}>
+              {t.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
@@ -526,5 +621,17 @@ const styles = StyleSheet.create({
   a: { fontFamily: font.bodyBold, fontSize: type.body, color: colors.text, textAlign: 'center' },
   verdictRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap' },
   verdict: { fontFamily: font.bodyBold, fontSize: type.small, textAlign: 'center' },
+  empty: { alignItems: 'center', gap: 12, paddingVertical: space.xl },
+  tabBar: { flexDirection: 'row', alignItems: 'flex-end', backgroundColor: colors.card, borderRadius: radius.l, borderWidth: 1, borderColor: colors.border, padding: 6, gap: 4, marginTop: 30,
+    shadowColor: colors.text, shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+  homeTab: { flex: 1, alignItems: 'center', gap: 4, marginTop: -36 },
+  homeCircle: { width: 76, height: 76, borderRadius: 38, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 5, borderColor: colors.bg, shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  homeCircleOff: { backgroundColor: colors.primarySoft },
+  tab: { flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: radius.m, paddingHorizontal: 2 },
+  tabOn: { backgroundColor: colors.primarySoft },
+  tabLabel: { fontFamily: font.bodyBold, fontSize: 14, color: colors.muted, textAlign: 'center' },
+  badge: { position: 'absolute', top: -6, right: -12, minWidth: 22, height: 22, borderRadius: 11, backgroundColor: colors.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  badgeText: { fontFamily: font.bodyBold, fontSize: 13, color: '#FFFFFF' },
   noteBox: { fontFamily: font.body, fontSize: type.body, minHeight: 120, textAlignVertical: 'top', backgroundColor: colors.card, borderWidth: 2, borderColor: colors.border, borderRadius: radius.m, padding: 16, color: colors.text, marginBottom: space.s },
 });

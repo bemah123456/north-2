@@ -16,7 +16,7 @@ const hidden = { accessibilityElementsHidden: true, importantForAccessibility: '
 // ---------- icons ----------
 
 export type IconName = 'check' | 'alert' | 'question' | 'dots' | 'dash' | 'mic' | 'speaker' | 'play' | 'stop'
-  | 'chevronRight' | 'chevronLeft' | 'chevronDown' | 'chevronUp';
+  | 'chevronRight' | 'chevronLeft' | 'chevronDown' | 'chevronUp' | 'home' | 'calendar' | 'message' | 'gear' | 'person';
 
 const ICONS: Record<IconName, string> = {
   check: 'M5 12.5l4.5 4.5L19 7.5',
@@ -30,6 +30,11 @@ const ICONS: Record<IconName, string> = {
   stop: 'M7 7h10v10H7z',
   chevronRight: 'M9.5 5.5L16 12l-6.5 6.5',
   chevronLeft: 'M14.5 5.5L8 12l6.5 6.5',
+  home: 'M4 11.5L12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1z',
+  person: 'M12 12a4 4 0 1 0 0-8a4 4 0 1 0 0 8zM4.5 20a7.5 7.5 0 0 1 15 0',
+  calendar: 'M5 6.5h14v13H5zM5 10.5h14M9 4.5v4M15 4.5v4',
+  message: 'M5 5.5h14v10H10.5L6 19v-3.5H5z',
+  gear: 'M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6zM12 3.5v2.5M12 18v2.5M3.5 12H6M18 12h2.5M6 6l1.8 1.8M16.2 16.2L18 18M6 18l1.8-1.8M16.2 7.8L18 6',
   chevronDown: 'M5.5 9.5L12 16l6.5-6.5',
   chevronUp: 'M5.5 14.5L12 8l6.5 6.5',
 };
