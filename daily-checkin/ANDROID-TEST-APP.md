@@ -1,5 +1,7 @@
 # Daily Check-in Android test app
 
+> Superseded: the Clari APK is now built locally with `app/scripts/build-android.sh`. See [app/BUILD-ANDROID.md](app/BUILD-ANDROID.md) for building, installing and pointing it at a server. The notes below are for the older test build.
+
 File: `daily-checkin-test.apk` (36 MB, kept in the Claude project files under `launch/`, not in this repo). Built 2026-10-20 from the senior-friendly redesign (PR #15, now merged). Nothing was published anywhere and no Expo account was used.
 
 SHA-256: `288af63221fe41e70c7926b0b1187257f6554fc927e150fd9026ac197ecf12b6`
