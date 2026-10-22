@@ -274,18 +274,56 @@ def _load_faster():
     return _faster_model
 
 
+# The model's own doubt about what it heard. On spoken test answers, clean and
+# with a TV 0 to 15 dB below the voice, flagging a mean word probability under
+# 0.75 or a segment average log-probability under -0.55 caught 11 of 25
+# misheard answers and re-asked 11 of 100 that were heard right. A TV louder
+# than the person is NOT caught this way (the model confidently writes down
+# the TV), which is what clip_check's background-voice test is for. Tune on
+# real phones.
+UNSURE_WORD_PROB = float(os.environ.get("UNSURE_WORD_PROB", "0.75"))
+UNSURE_LOGPROB = float(os.environ.get("UNSURE_LOGPROB", "-0.55"))
+
+
+def transcribe_detail(audio: bytes, content_type: str, expect: str | None = None) -> dict:
+    """Like transcribe(), plus unsure=True when the model itself doubted what
+    it heard. Only the faster-whisper engine reports that; the others never
+    say unsure."""
+    if provider() == "local" and os.environ.get("LOCAL_WHISPER_ENGINE") == "faster-whisper":
+        text, words, conf = _faster_whisper_detail(audio, expect)
+        return {"transcript": text, "words": words, "unsure": is_unsure(conf), "confidence": conf}
+    text, words = transcribe(audio, content_type, expect)
+    return {"transcript": text, "words": words}
+
+
+def is_unsure(conf: dict | None) -> bool:
+    if not conf or not conf.get("words"):
+        return False
+    return conf["mean_word_prob"] < UNSURE_WORD_PROB or conf["min_avg_logprob"] < UNSURE_LOGPROB
+
+
 def _faster_whisper(audio: bytes, expect: str | None = None) -> tuple[str, list[Word]]:
+    text, words, _ = _faster_whisper_detail(audio, expect)
+    return text, words
+
+
+def _faster_whisper_detail(audio: bytes, expect: str | None = None) -> tuple[str, list[Word], dict | None]:
     samples = _decode_16k(audio)
     if len(samples) < SR // 10:
-        return "", []
+        return "", [], None
     model = _load_faster()
     name = os.environ.get("FASTER_WHISPER_MODEL", "small")
     lang = {} if name.endswith(".en") else {"language": "en"}
     segments, _ = model.transcribe(samples, word_timestamps=True, initial_prompt=expect, beam_size=5, **lang)
     segments = list(segments)
-    words = [Word(w.word.strip(), float(w.start), float(w.end))
-             for seg in segments for w in (seg.words or []) if w.word.strip()]
-    return "".join(seg.text for seg in segments).strip(), words
+    raw = [w for seg in segments for w in (seg.words or []) if w.word.strip()]
+    words = [Word(w.word.strip(), float(w.start), float(w.end)) for w in raw]
+    conf = {
+        "words": len(raw),
+        "mean_word_prob": round(float(sum(w.probability for w in raw)) / len(raw), 3) if raw else None,
+        "min_avg_logprob": round(float(min(s.avg_logprob for s in segments)), 3) if segments else None,
+    }
+    return "".join(seg.text for seg in segments).strip(), words, conf
 
 
 _parakeet_recognizer = None

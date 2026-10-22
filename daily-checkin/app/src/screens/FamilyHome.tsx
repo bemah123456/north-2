@@ -383,7 +383,7 @@ function Detail({ result, onReport, player, sharing }: {
             {it.out_of ? `  (${it.correct_items} of ${it.out_of})` : ''}
             {it.one_month_dropped
               ? '  (one month may have been misheard)'
-              : it.misheard ? "  (couldn't make this out)" : ''}
+              : it.misheard ? "  (couldn't make this out)" : it.hard_to_hear ? '  (hard to hear)' : ''}
           </Text>
           {recorded.has(it.exercise_id) && (
             <QuietButton
