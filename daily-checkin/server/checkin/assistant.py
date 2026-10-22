@@ -24,6 +24,11 @@ from datetime import date
 
 MODEL = os.environ.get("ASSISTANT_MODEL", "claude-opus-5-5")
 
+# Models that accept the server-side refusal fallback. Claude Haiku 5.5
+# doesn't, and sending it there is rejected; on such models a refusal simply
+# falls back to the built-in answers.
+FALLBACK_MODELS = {"claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"}
+
 GUIDE = """\
 ABOUT CLARI
 Clari is a phone app that helps families notice delirium early in an older relative. Delirium is sudden
@@ -191,12 +196,12 @@ def _ask_claude(person: dict, days: list[dict], message: str, history: list[dict
     while messages and messages[0]["role"] != "user":
         messages.pop(0)
     messages.append({"role": "user", "content": message})
+    fallback = {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"} if MODEL in FALLBACK_MODELS else {}
     try:
         response = anthropic.Anthropic().beta.messages.create(
             model=MODEL,
             max_tokens=4000,
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
+            **fallback,
             output_config={"effort": "low", "format": {"type": "json_schema", "schema": SCHEMA}},
             # Stable guide first so it can be cached; the person's details change daily.
             system=[

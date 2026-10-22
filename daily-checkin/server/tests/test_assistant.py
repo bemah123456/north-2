@@ -64,6 +64,7 @@ def test_claude_answer_and_only_safe_suggestions(client, monkeypatch):
     assert a["source"] == "claude"
     assert [s["setting"] for s in a["suggestions"]] == ["evening_checkin", "checkin_time"]  # 23:30 dropped
     assert seen["model"] == "claude-opus-5-5" and seen["messages"][0]["role"] == "user"
+    assert seen["fallbacks"] == "default"
     assert "Mom" in seen["system"][1]["text"] and "4AT" in seen["system"][0]["text"]
 
 
@@ -89,3 +90,21 @@ def test_red_day_still_answers_other_questions():
     assert evening["reply"].startswith("The evening check-in") and "call their doctor today" in evening["reply"]
     assert evening["suggestions"][0]["setting"] == "evening_checkin"
     assert assistant._ask_guide(p, red, "Is Mom OK?")["reply"].startswith("Today's result for Rose is red")
+
+
+def test_haiku_gets_no_fallback_parameter(client, monkeypatch):
+    monkeypatch.setenv("ASSISTANT_ENABLED", "1")
+    monkeypatch.setattr(assistant, "MODEL", "claude-haiku-5-5")
+    seen = {}
+
+    class FakeMessages:
+        def create(self, **kw):
+            seen.update(kw)
+            return types.SimpleNamespace(stop_reason="end_turn", content=[types.SimpleNamespace(
+                type="text", text=json.dumps({"reply": "Hi", "suggestions": []}))])
+
+    fake = types.SimpleNamespace(Anthropic=lambda: types.SimpleNamespace(beta=types.SimpleNamespace(messages=FakeMessages())),
+                                 APIConnectionError=Exception, APIStatusError=Exception)
+    monkeypatch.setitem(sys.modules, "anthropic", fake)
+    assert ask(client, person(client), "hi")["source"] == "claude"
+    assert seen["model"] == "claude-haiku-5-5" and "fallbacks" not in seen and "betas" not in seen
