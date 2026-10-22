@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from . import listen, notify, report, store, transcribe
 from .baseline import load_model
@@ -64,9 +64,18 @@ def _check_timezone(tz: str) -> None:
         raise HTTPException(422, f"Unknown time zone {tz}")
 
 
+def _check_birth_date(d: date | None) -> date | None:
+    """Their real date of birth: Clari checks their answers against it, so a
+    typo would mark them wrong every day."""
+    if d is not None and not (date(1900, 1, 1) <= d <= date.today()):
+        raise ValueError("Birth date should be a real date in the past, like 1944-03-14")
+    return d
+
+
 class PersonIn(BaseModel):
-    name: str = Field(description="What the family calls them, e.g. Mom")
+    name: str = Field(min_length=1, description="What the family calls them, e.g. Mom")
     birth_date: date
+    check_birth = field_validator("birth_date")(_check_birth_date)
     timezone: str = "America/New_York"
     checkin_time: str = Field("09:00", pattern=CLOCK)
     place_keywords: list[str] = Field(default_factory=list,
@@ -81,7 +90,9 @@ class PersonIn(BaseModel):
 
 
 class PersonPatch(BaseModel):
-    name: str | None = None
+    name: str | None = Field(None, min_length=1)
+    birth_date: date | None = None
+    check_birth = field_validator("birth_date")(_check_birth_date)
     timezone: str | None = None
     checkin_time: str | None = Field(None, pattern=CLOCK)
     place_keywords: list[str] | None = None
@@ -151,7 +162,10 @@ def patch_person(pid: str, body: PersonPatch) -> dict:
     person_or_404(pid)
     if body.timezone is not None:
         _check_timezone(body.timezone)
-    return store.update_person(pid, body.model_dump(exclude_none=True))
+    changes = body.model_dump(exclude_none=True)
+    if "birth_date" in changes:
+        changes["birth_date"] = changes["birth_date"].isoformat()
+    return store.update_person(pid, changes)
 
 
 def _local_day(person: dict, override: str | None) -> tuple[date, datetime]:
