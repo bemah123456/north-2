@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
+import { Animated, Easing, Pressable, ScrollView, type ScrollViewInstance, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 
 import { Backdrop, Icon, IconName, LogoMark, StatusDot } from './graphics';
 import { useReducedMotion } from './motion';
@@ -8,17 +8,22 @@ import { brand, colors, font, maxScale, motion, radius, space, statusColor, stat
 // One screen: content at the top, and the main action pinned to the bottom
 // where a thumb can reach it without scrolling. `backdrop` adds the soft
 // brand shapes behind it.
-export function Screen({ children, footer, scroll = true, backdrop }: {
+export function Screen({ children, footer, scroll = true, backdrop, scrollToEndOn }: {
   children: ReactNode;
   footer?: ReactNode;
   scroll?: boolean;
   backdrop?: 'calm' | 'bright';
+  scrollToEndOn?: unknown; // scrolls to the bottom whenever this changes (a chat's newest message)
 }) {
+  const scroller = useRef<ScrollViewInstance>(null);
+  useEffect(() => {
+    if (scrollToEndOn !== undefined) setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 50);
+  }, [scrollToEndOn]);
   const body = <View style={styles.inner}>{children}</View>;
   return (
     <View style={styles.screen}>
       {backdrop && <Backdrop tone={backdrop} />}
-      {scroll ? <ScrollView contentContainerStyle={{ flexGrow: 1 }}>{body}</ScrollView> : <View style={{ flex: 1 }}>{body}</View>}
+      {scroll ? <ScrollView ref={scroller} contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">{body}</ScrollView> : <View style={{ flex: 1 }}>{body}</View>}
       {footer && <View style={styles.footer}>{footer}</View>}
     </View>
   );

@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field, field_validator
 
-from . import listen, notify, report, store, transcribe
+from . import assistant, listen, notify, report, store, transcribe
 from .baseline import load_model
 from .change import duration_z
 from .exercises import build_checkin, build_session
@@ -412,6 +412,11 @@ def get_checkin(cid: str) -> dict:
 def days(pid: str) -> dict:
     """The family view: one row per day since they joined, newest first."""
     p = person_or_404(pid)
+    return {"person": p, "days": _day_rows(p), "alerts": store.alerts(pid)[:20]}
+
+
+def _day_rows(p: dict) -> list[dict]:
+    pid = p["id"]
     now = local_now(utcnow(), p["timezone"])
     results = {}
     for c in store.checkins(pid):
@@ -422,7 +427,26 @@ def days(pid: str) -> dict:
     notes = store.notes(pid)
     for row in rows:
         row["note"] = notes.get(row["date"], "")
-    return {"person": p, "days": rows, "alerts": store.alerts(pid)[:20]}
+    return rows
+
+
+class ChatTurn(BaseModel):
+    role: str = Field(pattern="^(user|assistant)$")
+    text: str = Field(max_length=4000)
+
+
+class Ask(BaseModel):
+    message: str = Field(min_length=1, max_length=1000)
+    history: list[ChatTurn] = Field(default_factory=list, max_length=20)
+
+
+@app.post("/people/{pid}/ask", dependencies=[Depends(auth)])
+def ask(pid: str, body: Ask) -> dict:
+    """Ask Clari: answers the family's questions about the app and their
+    settings. Suggested settings changes come back as buttons for the family
+    to confirm; nothing changes here."""
+    p = person_or_404(pid)
+    return assistant.ask(p, _day_rows(p), body.message.strip(), [h.model_dump() for h in body.history])
 
 
 class DayNote(BaseModel):
