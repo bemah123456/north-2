@@ -227,7 +227,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
         askedAgain.current.add(ex.id);
         pendingUri.current = uri;
         setPhase('quiet');
-        say("I'm having trouble hearing you. Could you turn off the TV or radio, or move somewhere quieter? Then I'll ask again.");
+        say("I'm having trouble hearing you. Could you move somewhere quieter? Then I'll ask again.");
         return;
       }
       if (check.ask_again) {
@@ -327,7 +327,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
       >
         <View style={styles.notice}><Icon name="mic" size={44} color={colors.amber} /></View>
         <Title>I'm having trouble hearing you</Title>
-        <Body>Could you turn off the TV or radio, close the door, or move somewhere quieter?</Body>
+        <Body>Could you move somewhere quieter?</Body>
         <Body muted>Then I'll ask that question again.</Body>
       </Screen>
     );
