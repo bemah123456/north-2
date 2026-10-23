@@ -1,6 +1,6 @@
 # Handoff
 
-Last updated 2026-10-21 (cloud training PR). A short, current summary of North 2. Every piece of finished work updates this file in the same pull request.
+Last updated 2026-10-22 (speech model round 5 PR). A short, current summary of North 2. Every piece of finished work updates this file in the same pull request.
 
 ## Goal
 
@@ -16,6 +16,8 @@ A voice check-in that helps families catch delirium in older relatives early. Th
 - **Android test app**: built 2026-10-20 from the redesign. The 36 MB APK is in the Claude project files at `launch/daily-checkin-test.apk`; install steps in `daily-checkin/ANDROID-TEST-APP.md`.
 
 ## In progress
+
+- **Speech model round 5** (PR stacked on #32, `research/pc/CLOUD-TRAINING.md`): Whisper large-v3-turbo fine-tuned on older speakers with background talk is the new best: 5.6% word errors in quiet and 8.4% with background talk, against round 3a's 8.4% / 12.6% (a third fewer errors; paired 95% interval -8.7 to -4.9 points), 39/39 months/numbers. It is 3.5 to 4.5 times slower on a CPU (7 s per answer on a 6-core laptop against 2 s), so swapping it into the testing server is a speed trade-off; steps in CLOUD-TRAINING.md. Weights are the Kaggle job's private output, not committed. Gemini on the same clips is waiting on a paid key (the free tier allows 20 requests a day).
 
 - **Training moved to the cloud** (PC offline from 2026-10-21): models and all 44k training clips were copied off the PC and saved in project files `models/`. Round 3 (from v2, extra month/number practice, about 6 h on CPU) is running; it is kept only if it beats v2 on the same 44 speakers. Results and how rounds work: `research/pc/CLOUD-TRAINING.md`.
 - Rerunning the voice-change test on unscripted speech from people over 60 (Santa Barbara Corpus), once the PC thread delivers it. All voice tests so far use read or synthetic speech.

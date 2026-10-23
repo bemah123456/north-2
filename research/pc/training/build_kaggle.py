@@ -25,7 +25,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 FILES = ["common.py", "compare_models.py", "fetch_cv17_older.py", "prepare_cv.py", "extend_train_manifest.py",
-         "finetune_whisper.py", "kaggle_rounds.py", "kaggle_round5.py", "fw_score.py"]
+         "finetune_whisper.py", "kaggle_rounds.py", "kaggle_round5.py", "fw_score.py", "export_testset.py"]
 
 RUNNER = '''# North 2: Whisper small training rounds (built by research/pc/training/build_kaggle.py).
 import base64, io, os, subprocess, sys, zipfile
@@ -61,6 +61,7 @@ def main():
     ap.add_argument("--start-label", default="")
     ap.add_argument("--rounds", type=Path, default=None, help="JSON list of rounds to run from that model")
     ap.add_argument("--script", default="kaggle_rounds.py", help="kaggle_round5.py for round 5")
+    ap.add_argument("--cpu", action="store_true", help="no GPU (export_testset.py needs none)")
     args = ap.parse_args()
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
@@ -77,8 +78,8 @@ def main():
                                                               if args.script != "kaggle_rounds.py" else [])) or "",
                                               rounds=args.rounds.read_text() if args.rounds else "[]"))
     meta = {"id": f"{args.user}/{slug}", "title": slug, "code_file": "run.py", "language": "python",
-            "kernel_type": "script", "is_private": True, "enable_gpu": True, "enable_tpu": False,
-            "enable_internet": True, "machine_shape": "NvidiaTeslaT4", "dataset_sources": [],
+            "kernel_type": "script", "is_private": True, "enable_gpu": not args.cpu, "enable_tpu": False,
+            "enable_internet": True, "machine_shape": None if args.cpu else "NvidiaTeslaT4", "dataset_sources": [],
             "competition_sources": [], "kernel_sources": [args.from_kernel] if args.from_kernel else [], "model_sources": []}
     (out / "kernel-metadata.json").write_text(json.dumps(meta, indent=2))
     print(f"built {out}; push with: kaggle kernels push -p {out}")
