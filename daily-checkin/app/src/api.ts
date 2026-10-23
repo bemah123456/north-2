@@ -153,10 +153,13 @@ export const api = {
   alertFeedback: (id: string, date: string, kind: string, wasReal: boolean) =>
     call(`/people/${id}/alerts/feedback`, { method: 'POST', body: JSON.stringify({ date, kind, was_real: wasReal }) }),
 
-  async submit(id: string, answers: Answer[], durationS: number, session: Session = 'morning'): Promise<Result> {
+  // planDate is the day the questions were for, so a check-in that runs
+  // past midnight is still scored against them.
+  async submit(id: string, answers: Answer[], durationS: number, session: Session = 'morning', planDate?: string): Promise<Result> {
     const form = new FormData();
     form.append('duration_s', String(Math.round(durationS)));
     form.append('session', session);
+    if (planDate) form.append('plan_date', planDate);
     const typed = answers.filter((a) => a.transcript !== undefined && !a.audioUri);
     form.append('answers', JSON.stringify(typed.map((a) => ({ exercise_id: a.exerciseId, transcript: a.transcript }))));
     for (const a of answers) {
@@ -168,10 +171,11 @@ export const api = {
   // Whether one recorded answer couldn't be made out, so the question
   // should be asked again, and whether a TV seemed to be on behind it.
   // Any failure or a slow server means "no" to both.
-  async checkAnswer(id: string, exerciseId: string, audioUri: string, session: Session = 'morning', timeoutMs = 10000): Promise<AnswerCheck> {
+  async checkAnswer(id: string, exerciseId: string, audioUri: string, session: Session = 'morning', planDate?: string, timeoutMs = 10000): Promise<AnswerCheck> {
     const form = new FormData();
     form.append('exercise_id', exerciseId);
     form.append('session', session);
+    if (planDate) form.append('plan_date', planDate);
     await appendAudio(form, 'audio', audioUri, exerciseId);
     const fine: AnswerCheck = { ask_again: false, noisy: false };
     const check = call<AnswerCheck>(`/people/${id}/answers/check`, { method: 'POST', body: form });

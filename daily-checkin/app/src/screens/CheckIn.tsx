@@ -39,6 +39,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
 }) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [session, setSession] = useState<Session>('morning');
+  const [planDate, setPlanDate] = useState<string>();
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>('loading');
   const [error, setError] = useState('');
@@ -76,6 +77,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
           else await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
         }
         setSession(plan.session);
+        setPlanDate(plan.date);
         setExercises(plan.exercises);
         if (useTyping) setStarted(true);
       } catch (e) {
@@ -181,7 +183,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
     const uri = recorder.uri ?? undefined;
     if (uri && !askedAgain.current.has(ex.id)) {
       setPhase('checking');
-      const check = await api.checkAnswer(personId, ex.id, uri, session);
+      const check = await api.checkAnswer(personId, ex.id, uri, session, planDate);
       // One noisy clip can be a fluke; two in a row means something is on.
       const tvOn = check.noisy && lastWasNoisy.current && !tvWarned.current;
       lastWasNoisy.current = check.noisy;
@@ -235,7 +237,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
     }
     setPhase('sending');
     try {
-      const result = await api.submit(personId, answers.current, (Date.now() - startedAt.current) / 1000, session);
+      const result = await api.submit(personId, answers.current, (Date.now() - startedAt.current) / 1000, session, planDate);
       setCheckinId(result.checkin_id);
       setPhase('done');
       Speech.speak('All done. Thank you! Was that easy or hard?', { rate: SPEECH_RATE });
