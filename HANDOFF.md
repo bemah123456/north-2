@@ -1,6 +1,6 @@
 # Handoff
 
-Last updated 2026-10-21 (PR #24). A short, current summary of North 2. Every piece of finished work updates this file in the same pull request.
+Last updated 2026-10-22 (Gemini integration). A short, current summary of North 2. Every piece of finished work updates this file in the same pull request.
 
 ## Goal
 
@@ -17,6 +17,8 @@ A voice check-in that helps families catch delirium in older relatives early. Th
 - **Family hears the check-in** (claude/family-listen): when a check-in with recorded answers is done, the family gets a message with the result and a private link that plays the whole check-in (question read aloud, then their answer). The family view has the same, plus "Hear their answer" per answer. Sharing is on by default (the setup screen already tells families the answers are recorded and shared) and can be turned off. Set `PUBLIC_URL` to the tunnel address so the link goes in the message.
 
 - **Clari redesign** (claude/clari-redesign): the app is now called Clari, with the logo recoloured to one solid teal, flat solid colours only (no gradients: navy text and buttons, teal graphics), Nunito and Atkinson Hyperlegible type, SVG icons, and calm animations (listening rings that follow the voice, a breathing start button, a done tick). All of it respects the phone's reduce-motion setting; text stays at 7:1 contrast. Screens: `daily-checkin/screenshots/clari/`.
+
+- **Gemini, off by default** (claude/gemini-integration): three flags, each with a fallback to today's behaviour. `GEMINI_TRANSCRIBE=1` takes the words from Gemini and keeps Whisper's word timings for the voice measures; `JUDGE_ENGINE=gemini` lets Gemini listen to answers the rules can't settle; `GEMINI_SPEECH_NOTE=1` adds a 0-3 "unusual speech" rating worth at most 1 point of the change score, never more than the other evidence, so it can't alarm alone. Vertex AI (production, zero data retention + BAA) or a Developer API key (synthetic audio only). Model pinned to `gemini-3.6-flash` (2.5-flash is closed to new keys). Whether Gemini's words become the default waits on the older-speaker benchmark. Env vars: `daily-checkin/README.md`; privacy: `daily-checkin/LAUNCH.md`.
 
 ## In progress
 

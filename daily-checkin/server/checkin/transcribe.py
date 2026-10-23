@@ -17,16 +17,24 @@ Set STT_PROVIDER to one of:
   "openai"    paid: OPENAI_API_KEY (Whisper API)
 Without any of them, the API still accepts answers that arrive already
 transcribed (the typed demo mode).
+
+GEMINI_TRANSCRIBE=1 (see gemini.py) takes the words from Gemini and the
+timings from the provider above; see transcribe_detail.
 """
 
 from __future__ import annotations
 
+import difflib
 import os
+import re
 import subprocess
 import tempfile
+import time
+from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 
+from . import gemini
 from .features import Word
 
 
@@ -288,7 +296,58 @@ UNSURE_LOGPROB = float(os.environ.get("UNSURE_LOGPROB", "-0.55"))
 def transcribe_detail(audio: bytes, content_type: str, expect: str | None = None) -> dict:
     """Like transcribe(), plus unsure=True when the model itself doubted what
     it heard. Only the faster-whisper engine reports that; the others never
-    say unsure."""
+    say unsure.
+
+    With GEMINI_TRANSCRIBE=1, Gemini writes the transcript while the
+    provider above still gives the word timings (pauses, speed, answer
+    delay), so the voice measures and people's own normal don't move when
+    Gemini is switched on. `unsure` stays the timing model's doubt, a sign
+    the clip is hard to hear. With GEMINI_SPEECH_NOTE=1 the same Gemini call
+    rates how unusual the speech sounds ("speech_note"). Gemini runs
+    alongside the timing model; if it fails or takes longer than
+    GEMINI_TIMEOUT_S, the answer is exactly what it would be without it."""
+    want_text, want_note = gemini.transcribe_enabled(), gemini.speech_note_enabled()
+    if not (want_text or want_note):
+        return _detail(audio, content_type, expect)
+    try:
+        samples = _decode_16k(audio)
+    except (TranscriptionUnavailable, FileNotFoundError):
+        return _detail(audio, content_type, expect)
+    if len(samples) < SR // 10:
+        return _detail(audio, content_type, expect)
+    deadline = time.monotonic() + gemini.timeout_s()
+    pool = ThreadPoolExecutor(max_workers=1)
+    pending = pool.submit(gemini.listen, gemini.wav_16k(samples), want_text, want_note)
+    try:
+        detail = _detail(audio, content_type, expect)
+        try:
+            heard = pending.result(timeout=max(deadline - time.monotonic(), 0.1))
+        except Exception:  # Gemini failed or is slow: keep the timing model's answer
+            heard = {}
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+    if "transcript" in heard:
+        detail["timing_transcript"] = detail["transcript"]
+        detail["transcript"] = heard["transcript"]
+        detail["transcript_by"] = "gemini"
+        detail["agreement"] = agreement(heard["transcript"], detail["timing_transcript"])
+    if "unusual" in heard:
+        detail["speech_note"] = heard["unusual"]
+    return detail
+
+
+def agreement(a: str, b: str) -> float:
+    """How alike two transcripts are, 0 to 1, by words. Kept with each
+    answer to check later whether disagreement should count as unsure."""
+    def norm(t):
+        return [w for w in re.sub(r"[^a-z0-9' ]", " ", t.lower()).split() if w]
+    x, y = norm(a), norm(b)
+    if not x and not y:
+        return 1.0
+    return round(difflib.SequenceMatcher(None, x, y).ratio(), 3)
+
+
+def _detail(audio: bytes, content_type: str, expect: str | None = None) -> dict:
     if provider() == "local" and os.environ.get("LOCAL_WHISPER_ENGINE") == "faster-whisper":
         text, words, conf = _faster_whisper_detail(audio, expect)
         return {"transcript": text, "words": words, "unsure": is_unsure(conf), "confidence": conf}

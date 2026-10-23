@@ -1,8 +1,16 @@
-"""Claude as a second opinion on answers the rules can't settle.
+"""A second opinion on answers the rules can't settle.
 
 Only called for answers `answers.py` marks as unsure (None), such as an
-unusual way of naming where someone is. Off unless ANTHROPIC_API_KEY (or
-another Anthropic credential) is configured and JUDGE_ENABLED=1.
+unusual way of naming where someone is. Off unless JUDGE_ENABLED=1.
+
+JUDGE_ENGINE picks who judges:
+  "claude" (default)  Claude reads the transcript (needs ANTHROPIC_API_KEY or
+                      another Anthropic credential).
+  "gemini"            Gemini listens to the recorded answer itself, so a
+                      misheard transcript can't mislead it (needs a Gemini
+                      backend, see gemini.py). Typed answers have no audio
+                      and are judged from their text.
+Either way, a failed call leaves the answer for a person to check.
 """
 
 from __future__ import annotations
@@ -35,10 +43,64 @@ def enabled() -> bool:
     return os.environ.get("JUDGE_ENABLED") == "1"
 
 
-def judge_answer(question: str, answer: str, facts: str) -> dict | None:
-    """Returns {"correct": bool, "reason": str}, or None if unavailable."""
+def engine() -> str:
+    return "gemini" if os.environ.get("JUDGE_ENGINE") == "gemini" else "claude"
+
+
+def judge_answer(question: str, answer: str, facts: str, audio: bytes | None = None) -> dict | None:
+    """Returns {"correct": bool, "reason": str, "by": "claude" | "gemini"},
+    or None if unavailable. audio: the recorded answer, for Gemini."""
     if not enabled():
         return None
+    if engine() == "gemini":
+        verdict = _gemini(question, answer, facts, audio)
+    else:
+        verdict = _claude(question, answer, facts)
+    return verdict | {"by": engine()} if verdict else None
+
+
+GEMINI_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "heard": {"type": "STRING"},
+        "correct": {"type": "BOOLEAN"},
+        "reason": {"type": "STRING"},
+    },
+    "required": ["heard", "correct", "reason"],
+}
+
+
+def _gemini(question: str, answer: str, facts: str, audio: bytes | None) -> dict | None:
+    from . import gemini
+    from .transcribe import TranscriptionUnavailable, _decode_16k
+
+    if not gemini.configured():
+        return None
+    parts = []
+    if audio:
+        try:
+            parts.append(gemini.audio_part(gemini.wav_16k(_decode_16k(audio))))
+        except (TranscriptionUnavailable, FileNotFoundError):
+            pass
+    if parts:
+        # The recording, not the transcript: the transcript is what the rules
+        # already couldn't settle, and may be the misheard part.
+        ask = (f"Facts: {facts}\nQuestion: {question}\nThe recording is the person's spoken answer. "
+               "In \"heard\", write what the main speaker says (ignore background voices and TV).")
+    else:
+        ask = f"Facts: {facts}\nQuestion: {question}\nSpoken answer: {answer!r}\nCopy the answer into \"heard\"."
+    parts.append({"text": SYSTEM + "\n\n" + ask})
+    try:
+        out = gemini.generate(parts, GEMINI_SCHEMA)
+    except gemini.GeminiUnavailable:
+        return None
+    if not isinstance(out.get("correct"), bool):
+        return None
+    return {"correct": out["correct"], "reason": str(out.get("reason", ""))[:300],
+            "heard": str(out.get("heard", ""))[:300]}
+
+
+def _claude(question: str, answer: str, facts: str) -> dict | None:
     import anthropic
 
     client = anthropic.Anthropic()
