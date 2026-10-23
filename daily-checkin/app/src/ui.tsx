@@ -47,8 +47,12 @@ export function Body({ children, muted, center }: { children: ReactNode; muted?:
   return <Text style={[styles.body, muted && { color: colors.muted }, center && { textAlign: 'center' }]}>{children}</Text>;
 }
 
-export function Section({ children }: { children: ReactNode }) {
-  return <Text style={styles.section} accessibilityRole="header" maxFontSizeMultiplier={maxScale.heading}>{children}</Text>;
+export function Section({ children, center }: { children: ReactNode; center?: boolean }) {
+  return (
+    <Text style={[styles.section, center && { textAlign: 'center' }]} accessibilityRole="header" maxFontSizeMultiplier={maxScale.heading}>
+      {children}
+    </Text>
+  );
 }
 
 // Presses dip slightly and quickly, without moving anything around them.

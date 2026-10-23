@@ -62,6 +62,14 @@ create table if not exists alerts (
   family_note text,
   primary key (person_id, date, kind)
 );
+-- The family's own notes on a day, e.g. "had a fall", "new antibiotics", for the doctor.
+create table if not exists day_notes (
+  person_id text not null references people(id) on delete cascade,
+  date text not null,
+  text text not null,
+  updated_at text not null,
+  primary key (person_id, date)
+);
 -- The team's own scoring of each answer, to measure how often the app agrees.
 create table if not exists hand_scores (
   checkin_id text not null references checkins(id) on delete cascade,
@@ -168,6 +176,20 @@ def update_person(pid: str, changes: dict) -> dict | None:
 def get_person(pid: str) -> dict | None:
     with db() as c:
         return _person(c.execute("select * from people where id = ?", (pid,)).fetchone())
+
+
+def set_note(pid: str, day: str, text: str, now_iso: str) -> None:
+    """An empty note removes it."""
+    with db() as c:
+        if text.strip():
+            c.execute("insert or replace into day_notes values (?,?,?,?)", (pid, day, text.strip(), now_iso))
+        else:
+            c.execute("delete from day_notes where person_id = ? and date = ?", (pid, day))
+
+
+def notes(pid: str) -> dict[str, str]:
+    with db() as c:
+        return {r[0]: r[1] for r in c.execute("select date, text from day_notes where person_id = ?", (pid,))}
 
 
 def all_people() -> list[dict]:

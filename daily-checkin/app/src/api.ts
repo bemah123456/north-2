@@ -99,6 +99,9 @@ export type DayRow = {
   headline: string;
   reasons: string[];
   checkin_id?: string;
+  score?: number | null; // that day's 4AT total
+  unsure?: boolean; // answers Clari wasn't sure of, or a noisy room
+  note?: string; // the family's own note on the day
 };
 
 export type Alert = { date: string; kind: string; sent_at: string; delivered: number; message: string; was_real: number | null };
@@ -172,6 +175,8 @@ export const api = {
   recording: (checkinId: string) => call<Recording>(`/checkins/${checkinId}/recording`),
   familyReport: (checkinId: string, different: boolean) =>
     call<Result>(`/checkins/${checkinId}/family-report`, { method: 'POST', body: JSON.stringify({ different }) }),
+  setNote: (id: string, date: string, text: string) =>
+    call<{ date: string; note: string }>(`/people/${id}/notes/${date}`, { method: 'PUT', body: JSON.stringify({ text }) }),
   dayOff: (id: string, date: string, off: boolean) =>
     call(`/people/${id}/days-off`, { method: 'POST', body: JSON.stringify({ date, off }) }),
 

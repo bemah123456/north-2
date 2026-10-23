@@ -97,7 +97,13 @@ def day_statuses(
         if d in results:
             r = results[d]
             rows.append({"date": d.isoformat(), "status": r["band"], "headline": r["headline"],
-                         "reasons": r["reasons"], "checkin_id": r.get("checkin_id")})
+                         "reasons": r["reasons"], "checkin_id": r.get("checkin_id"),
+                         # For the calendar: the day's 4AT total, and whether
+                         # anything was uncertain (answers left for a person
+                         # to check, answers that were hard to hear, a noisy room).
+                         "score": r.get("total"),
+                         "unsure": bool(r.get("needs_review")) or bool(r.get("noisy"))
+                         or any(i.get("hard_to_hear") for i in r.get("items", []))})
         elif d in days_off:
             rows.append({"date": d.isoformat(), "status": "day_off", "headline": "Day off", "reasons": []})
         elif d == today and now_local < datetime.combine(
