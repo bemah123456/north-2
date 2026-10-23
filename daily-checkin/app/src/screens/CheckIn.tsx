@@ -32,6 +32,23 @@ const SPEECH_RATE = 0.85;
 const NOISY_ROOM_DB = -45;
 const ROOM_CHECK_MS = 3000;
 
+// While recording is allowed, iPhones play sound through the earpiece, so a
+// question read aloud would be a whisper unless the phone is at their ear.
+// The app switches to the loudspeaker to talk and back to the microphone to
+// listen. Playing in silent mode means a muted ringer doesn't silence it.
+async function speakerMode() {
+  if (Platform.OS !== 'web') await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {});
+}
+
+async function microphoneMode() {
+  if (Platform.OS !== 'web') await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true }).catch(() => {});
+}
+
+// Reads something aloud through the loudspeaker.
+function say(text: string, options: Speech.SpeechOptions = {}) {
+  speakerMode().then(() => Speech.speak(text, { rate: SPEECH_RATE, ...options }));
+}
+
 type Phase = 'loading' | 'roomcheck' | 'noisy' | 'tv' | 'checking' | 'speaking' | 'listening' | 'typing' | 'sending' | 'done' | 'error';
 
 export default function CheckIn({ personId, typedMode, onFinished }: {
@@ -76,7 +93,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
         if (!useTyping) {
           const perm = await requestRecordingPermissionsAsync();
           if (!perm.granted) setUseTyping(true);
-          else await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+          else await microphoneMode();
         }
         setSession(plan.session);
         setPlanDate(plan.date);
@@ -106,6 +123,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
   async function checkRoom() {
     setPhase('roomcheck');
     try {
+      await microphoneMode();
       await recorder.prepareToRecordAsync();
       recorder.record();
       const levels: number[] = [];
@@ -119,7 +137,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
       const typical = levels.length ? levels[Math.floor(levels.length / 2)] : -160;
       if (typical > NOISY_ROOM_DB) {
         setPhase('noisy');
-        Speech.speak("It's a bit noisy. Could you turn down the TV, or go somewhere quieter?", { rate: SPEECH_RATE });
+        say("It's a bit noisy. Could you turn down the TV, or go somewhere quieter?");
         return;
       }
     } catch {
@@ -160,7 +178,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
       else startListening(ex);
     };
     const said = preface ? `${preface} ${ex.prompt}` : ex.prompt;
-    Speech.speak(said, { rate: SPEECH_RATE, onDone: begin, onStopped: () => {}, onError: begin });
+    say(said, { onDone: begin, onStopped: () => {}, onError: begin });
     // Some browsers never report the end of speech.
     setTimeout(begin, 1500 + said.split(' ').length * 450);
   }
@@ -169,6 +187,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
     heardSpeech.current = false;
     quietSince.current = null;
     finishing.current = false;
+    await microphoneMode();
     await recorder.prepareToRecordAsync();
     recorder.record();
     setPhase('listening');
@@ -196,7 +215,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
         askedAgain.current.add(ex.id);
         pendingUri.current = uri;
         setPhase('tv');
-        Speech.speak('It sounds like a TV or radio is on. Could you turn it off?', { rate: SPEECH_RATE });
+        say('It sounds like a TV or radio is on. Could you turn it off?');
         return;
       }
       if (check.ask_again) {
@@ -244,7 +263,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
       const result = await api.submit(personId, answers.current, (Date.now() - startedAt.current) / 1000, session, planDate);
       setCheckinId(result.checkin_id);
       setPhase('done');
-      Speech.speak('All done. Thank you! Was that easy or hard?', { rate: SPEECH_RATE });
+      say('All done. Thank you! Was that easy or hard?');
     } catch (e) {
       setError(String((e as Error).message));
       setPhase('error');
@@ -361,7 +380,8 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
       {phase === 'speaking' && (
         <View style={styles.status} accessibilityLiveRegion="polite">
           <Speaking size={124} />
-          <Text style={styles.statusText}>Listen…</Text>
+          <Text style={styles.statusText}>Reading the question out loud</Text>
+          <Text style={styles.statusHint}>Listen, then answer by talking</Text>
         </View>
       )}
       {listening && (
@@ -392,7 +412,7 @@ const styles = StyleSheet.create({
   wait: { fontFamily: font.display, fontSize: type.big, color: colors.text, textAlign: 'center', marginTop: 12 },
   prompt: { fontFamily: font.display, fontSize: type.huge, lineHeight: 44, color: colors.text, marginBottom: 12 },
   status: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: space.s },
-  statusText: { fontFamily: font.display, fontSize: type.big, color: colors.text },
+  statusText: { fontFamily: font.display, fontSize: type.big, color: colors.text, textAlign: 'center' },
   statusHint: { fontFamily: font.body, fontSize: type.body, lineHeight: 30, color: colors.muted, marginTop: 4, textAlign: 'center' },
   notice: { width: 84, height: 84, borderRadius: 42, backgroundColor: colors.amberSoft, alignItems: 'center', justifyContent: 'center', marginBottom: space.m },
 });
