@@ -9,6 +9,7 @@ import csv
 import hashlib
 import io
 import json
+import logging
 import os
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -23,10 +24,12 @@ from .baseline import load_model
 from .change import duration_z
 from .exercises import build_checkin, build_session
 from .features import FEATURE_DIRECTIONS
-from .missed import day_statuses, due_actions, is_late, local_now
+from .missed import FAMILY_ALERT_MIN, day_statuses, due_actions, is_late, local_now
 from .scoring import apply_evening, finalize, retry_reason, score_checkin, score_evening, words_from_json
 
 DEMO_MODE = os.environ.get("DEMO_MODE") == "1"
+
+log = logging.getLogger(__name__)
 
 app = FastAPI(title="Daily check-in")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -49,11 +52,22 @@ def person_or_404(pid: str) -> dict:
     return p
 
 
+# A 24-hour clock time, 00:00 to 23:59.
+CLOCK = r"^([01]\d|2[0-3]):[0-5]\d$"
+
+
+def _check_timezone(tz: str) -> None:
+    try:
+        ZoneInfo(tz)
+    except Exception:
+        raise HTTPException(422, f"Unknown time zone {tz}")
+
+
 class PersonIn(BaseModel):
     name: str = Field(description="What the family calls them, e.g. Mom")
     birth_date: date
     timezone: str = "America/New_York"
-    checkin_time: str = Field("09:00", pattern=r"^\d{2}:\d{2}$")
+    checkin_time: str = Field("09:00", pattern=CLOCK)
     place_keywords: list[str] = Field(default_factory=list,
                                       description="Accepted answers to 'where are you', e.g. home, Springfield")
     family_name: str | None = None
@@ -61,20 +75,20 @@ class PersonIn(BaseModel):
     senior_push_token: str | None = None
     family_push_token: str | None = None
     evening_checkin: bool = Field(False, description="A shorter second check-in in the evening, compared with the morning")
-    evening_time: str = Field("19:00", pattern=r"^\d{2}:\d{2}$")
+    evening_time: str = Field("19:00", pattern=CLOCK)
 
 
 class PersonPatch(BaseModel):
     name: str | None = None
     timezone: str | None = None
-    checkin_time: str | None = Field(None, pattern=r"^\d{2}:\d{2}$")
+    checkin_time: str | None = Field(None, pattern=CLOCK)
     place_keywords: list[str] | None = None
     family_name: str | None = None
     family_phone: str | None = None
     senior_push_token: str | None = None
     family_push_token: str | None = None
     evening_checkin: bool | None = None
-    evening_time: str | None = Field(None, pattern=r"^\d{2}:\d{2}$")
+    evening_time: str | None = Field(None, pattern=CLOCK)
 
 
 class FamilyReport(BaseModel):
@@ -110,14 +124,18 @@ def health() -> dict:
 
 @app.post("/people", dependencies=[Depends(auth)])
 def create_person(body: PersonIn) -> dict:
-    try:
-        ZoneInfo(body.timezone)
-    except Exception:
-        raise HTTPException(422, f"Unknown time zone {body.timezone}")
+    _check_timezone(body.timezone)
     data = body.model_dump()
     data["birth_date"] = body.birth_date.isoformat()
-    today = local_now(utcnow(), body.timezone).date()
-    return store.create_person(data, today)
+    now = local_now(utcnow(), body.timezone)
+    first_day = now.date()
+    # Set up after today's family alert would have gone out: today can't
+    # count as missed, so their first day is tomorrow.
+    alert_at = datetime.combine(first_day, time.fromisoformat(body.checkin_time), now.tzinfo) \
+        + timedelta(minutes=FAMILY_ALERT_MIN)
+    if now >= alert_at:
+        first_day += timedelta(days=1)
+    return store.create_person(data, first_day)
 
 
 @app.get("/people/{pid}", dependencies=[Depends(auth)])
@@ -128,6 +146,8 @@ def get_person(pid: str) -> dict:
 @app.patch("/people/{pid}", dependencies=[Depends(auth)])
 def patch_person(pid: str, body: PersonPatch) -> dict:
     person_or_404(pid)
+    if body.timezone is not None:
+        _check_timezone(body.timezone)
     return store.update_person(pid, body.model_dump(exclude_none=True))
 
 
@@ -190,12 +210,21 @@ def today_plan(pid: str, date_override: str | None = None, session: str | None =
 _heard: dict[str, dict] = {}
 
 
+# An empty or broken clip is an answer nobody heard, not a reason to lose
+# the whole check-in.
+NOTHING_HEARD = {"transcript": "", "words": [], "heard_speech": False, "noisy": False}
+
+
 def _hear(ex, data: bytes, content_type: str | None) -> dict:
+    if not data:
+        return dict(NOTHING_HEARD)
     key = hashlib.sha256(ex.kind.encode() + data).hexdigest()
     if key not in _heard:
         try:
             expect = transcribe.MONTHS_BACKWARDS if ex.kind == "months_backwards" else None
             text, words = transcribe.transcribe(data, content_type, expect)
+        except transcribe.UnreadableRecording:
+            return dict(NOTHING_HEARD)
         except transcribe.TranscriptionUnavailable:
             raise HTTPException(503, "Speech-to-text isn't set up on the server yet; "
                                      "set STT_PROVIDER or use typed answers")
@@ -367,14 +396,21 @@ def missed_job(now: str | None = None) -> dict:
         raise HTTPException(400, "Setting the time is only allowed in demo mode")
     now_utc = datetime.fromisoformat(now) if now else utcnow()
     out = []
+    errors = []
     for p in store.all_people():
         done = {date.fromisoformat(c["local_date"]) for c in store.checkins(p["id"])}
-        for action in due_actions(p, now_utc, done, store.days_off(p["id"]), store.sent_alerts(p["id"])):
+        try:
+            actions = due_actions(p, now_utc, done, store.days_off(p["id"]), store.sent_alerts(p["id"]))
+        except Exception as e:  # one bad setting mustn't stop everyone else's alerts
+            log.exception("missed check-in job failed for %s", p["id"])
+            errors.append({"person_id": p["id"], "error": str(e)})
+            continue
+        for action in actions:
             delivered = False if action.get("skipped") else notify.send(p, action)
             store.record_alert(p["id"], action["date"], action["kind"], now_utc.isoformat(),
                                delivered, action["message"])
             out.append(action | {"delivered": delivered})
-    return {"actions": out, "notifications_live": notify.live()}
+    return {"actions": out, "errors": errors, "notifications_live": notify.live()}
 
 
 @app.get("/export/features.csv", dependencies=[Depends(auth)], response_class=PlainTextResponse)
