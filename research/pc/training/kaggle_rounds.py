@@ -192,10 +192,12 @@ class Clips(torch.utils.data.Dataset):
 
 
 def train(model, processor, rows, steps, lr, aug, key_frac, seed, batch=8, accum=2, checkpoints=(),
-          on_checkpoint=None):
+          on_checkpoint=None, optim="adamw", grad_ckpt=False):
     """The PC's recipe (AdamW, 100-step warm-up then linear decay, clip 1.0, 8 clips x 2
     accumulated = 16 a step), on the GPU with mixed precision and the whole model trained.
-    16 clips at once runs a 15 GB T4 out of memory."""
+    16 clips at once runs a 15 GB T4 out of memory. For large models: optim="adamw8bit" keeps
+    Adam's two running averages in 8 bits, and grad_ckpt recomputes activations instead of
+    storing them."""
     rng = np.random.default_rng(seed)
     key_idx = [i for i, r in enumerate(rows) if any(w in KEY_WORDS for w in normalise(r["sentence"]).split())]
     plan = []
@@ -219,9 +221,15 @@ def train(model, processor, rows, steps, lr, aug, key_frac, seed, batch=8, accum
                                          collate_fn=collate, prefetch_factor=4, persistent_workers=False)
     model.config.forced_decoder_ids = None
     model.generation_config.forced_decoder_ids = None
+    if grad_ckpt:
+        model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     model.train()
     params = [p for p in model.parameters() if p.requires_grad]
-    opt = torch.optim.AdamW(params, lr=lr, weight_decay=0.01)
+    if optim == "adamw8bit":
+        import bitsandbytes as bnb
+        opt = bnb.optim.AdamW8bit(params, lr=lr, weight_decay=0.01)
+    else:
+        opt = torch.optim.AdamW(params, lr=lr, weight_decay=0.01)
     sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: min(1.0, (s + 1) / 100) * max(0.0, 1 - s / steps))
     scaler = torch.amp.GradScaler("cuda", enabled=DEV == "cuda")
     t0 = time.time()
@@ -246,6 +254,8 @@ def train(model, processor, rows, steps, lr, aug, key_frac, seed, batch=8, accum
             on_checkpoint(step + 1)
             model.train()
     del batches, loader
+    if grad_ckpt:
+        model.gradient_checkpointing_disable()
     model.eval()
 
 
