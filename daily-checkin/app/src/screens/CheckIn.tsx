@@ -8,7 +8,7 @@
 // it off and asks again.
 
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import * as Speech from 'expo-speech';
 import {
   RecordingPresets,
@@ -19,8 +19,10 @@ import {
 } from 'expo-audio';
 
 import { Answer, Exercise, Session, api } from '../api';
-import { colors, maxScale, type } from '../theme';
-import { Badge, BigButton, Body, Field, Progress, Screen, Title } from '../ui';
+import { Done, Icon, Listening, Speaking, Waiting } from '../graphics';
+import { Rise } from '../motion';
+import { colors, font, maxScale, space, type } from '../theme';
+import { BigButton, Body, Field, Progress, Screen, Title } from '../ui';
 
 const SPEAKING_DB = -40; // louder than this counts as talking
 const QUIET_TO_FINISH_MS = 4000;
@@ -257,9 +259,9 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
       sending: 'Saving your answers…',
     }[phase];
     return (
-      <Screen>
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} style={{ transform: [{ scale: 1.6 }] }} />
+      <Screen backdrop="calm">
+        <View style={styles.center} accessibilityLiveRegion="polite">
+          <Waiting size={110} />
           <Text style={styles.wait}>{words}</Text>
         </View>
       </Screen>
@@ -275,6 +277,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
           </>
         }
       >
+        <View style={styles.notice}><Icon name="speaker" size={44} color={colors.amber} /></View>
         <Title>It's a bit noisy</Title>
         <Body>Could you turn down the TV or radio, or go somewhere quieter?</Body>
         <Body muted>Background voices make it hard to hear your answers.</Body>
@@ -291,6 +294,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
           </>
         }
       >
+        <View style={styles.notice}><Icon name="speaker" size={44} color={colors.amber} /></View>
         <Title>Is a TV or radio on?</Title>
         <Body>It sounds like someone else is talking in the background. Could you turn it off so I can hear you clearly?</Body>
       </Screen>
@@ -318,10 +322,11 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
             <BigButton label="Back to home" onPress={onFinished} />
           )
         }
+        backdrop="bright"
       >
         <View style={styles.center}>
-          <Badge mode="done" />
-          <Title>All done. Thank you!</Title>
+          <Done size={140} />
+          <Title center>All done. Thank you!</Title>
           <Body center>{asking ? 'Was that easy or hard?' : 'See you tomorrow.'}</Body>
         </View>
       </Screen>
@@ -350,18 +355,22 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
       }
     >
       <Progress at={index + 1} of={exercises.length} />
-      <Text style={styles.prompt} maxFontSizeMultiplier={maxScale.heading}>{ex.caption || ex.prompt}</Text>
+      <Rise key={`${index}`}>
+        <Text style={styles.prompt} maxFontSizeMultiplier={maxScale.heading}>{ex.caption || ex.prompt}</Text>
+      </Rise>
       {phase === 'speaking' && (
         <View style={styles.status} accessibilityLiveRegion="polite">
-          <Badge mode="speaking" />
+          <Speaking size={124} />
           <Text style={styles.statusText}>Listen…</Text>
         </View>
       )}
       {listening && (
         <View style={styles.status} accessibilityLiveRegion="polite">
-          <Badge mode="listening" active={(state.metering ?? -60) > SPEAKING_DB} />
+          <Listening level={state.metering} size={110} />
           <Text style={styles.statusText}>I'm listening</Text>
-          <Text style={styles.statusHint}>Take your time</Text>
+          <Text style={styles.statusHint}>
+            Take your time{Platform.OS === 'web' && !useTyping ? ". Speak into your computer's microphone." : ''}
+          </Text>
         </View>
       )}
       {phase === 'typing' && (
@@ -374,16 +383,16 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
           returnKeyType="next"
         />
       )}
-      {Platform.OS === 'web' && !useTyping && <Body muted center>Speak into your computer's microphone.</Body>}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
-  wait: { fontSize: type.big, fontWeight: '700', color: colors.text, textAlign: 'center', marginTop: 24 },
-  prompt: { fontSize: type.huge, lineHeight: 48, fontWeight: '700', color: colors.text, marginBottom: 16 },
-  status: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  statusText: { fontSize: type.big, fontWeight: '800', color: colors.text },
-  statusHint: { fontSize: type.body, color: colors.muted, marginTop: 4 },
+  wait: { fontFamily: font.display, fontSize: type.big, color: colors.text, textAlign: 'center', marginTop: 12 },
+  prompt: { fontFamily: font.display, fontSize: type.huge, lineHeight: 44, color: colors.text, marginBottom: 12 },
+  status: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: space.s },
+  statusText: { fontFamily: font.display, fontSize: type.big, color: colors.text },
+  statusHint: { fontFamily: font.body, fontSize: type.body, lineHeight: 30, color: colors.muted, marginTop: 4, textAlign: 'center' },
+  notice: { width: 84, height: 84, borderRadius: 42, backgroundColor: colors.amberSoft, alignItems: 'center', justifyContent: 'center', marginBottom: space.m },
 });

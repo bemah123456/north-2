@@ -3,13 +3,33 @@
 // Refresh button, and "Change setup" sits behind a confirm so a stray tap
 // can't disconnect them from their family.
 
-import { useCallback, useEffect, useState } from 'react';
-import { AppState, StyleSheet, Text, View } from 'react-native';
+import { ReactNode, useCallback, useEffect, useState } from 'react';
+import { Animated, AppState, StyleSheet, Text, View } from 'react-native';
 
 import { api, Person, TodayPlan } from '../api';
 import { scheduleDailyReminder } from '../reminders';
-import { colors, maxScale, space, type } from '../theme';
-import { Badge, BigButton, Body, QuietButton, Screen, Title } from '../ui';
+import { Done, LogoMark } from '../graphics';
+import { Rise, useBreath } from '../motion';
+import { brand, colors, font, maxScale, radius, space, type } from '../theme';
+import { BigButton, Body, QuietButton, Screen, Title } from '../ui';
+
+// The start button glows softly, like a slow breath, to show where to tap.
+function Glowing({ children }: { children: ReactNode }) {
+  const t = useBreath(2800);
+  return (
+    <View>
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.glow, {
+          opacity: t.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.6] }),
+          transform: [{ scaleX: t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) },
+            { scaleY: t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) }],
+        }]}
+      />
+      {children}
+    </View>
+  );
+}
 
 function niceTime(hhmm: string) {
   const [h, m] = hhmm.split(':').map(Number);
@@ -78,7 +98,7 @@ export default function SeniorHome({ personId, onStart, onSignOut }: {
   if (plan?.already_done) {
     main = (
       <View style={styles.centre}>
-        <Badge mode="done" />
+        <View style={{ alignItems: 'center' }}><Done size={130} /></View>
         <Text style={styles.doneTitle} maxFontSizeMultiplier={maxScale.heading}>All done for today</Text>
         <Body center>Thank you!</Body>
         <Body center muted>
@@ -91,6 +111,9 @@ export default function SeniorHome({ personId, onStart, onSignOut }: {
   } else {
     main = (
       <View style={styles.centre}>
+        <Rise order={2} style={{ alignItems: 'center', marginBottom: space.m }}>
+          <LogoMark size={128} breathe />
+        </Rise>
         <Body center>
           {evening
             ? 'Time for your short evening check-in.'
@@ -102,23 +125,29 @@ export default function SeniorHome({ personId, onStart, onSignOut }: {
 
   return (
     <Screen
+      backdrop="calm"
       footer={
         <>
           {!plan?.already_done && (
-            <BigButton
-              size="hero"
-              label={evening ? 'Start my evening check-in' : 'Start my check-in'}
-              hint={evening ? 'About 1 minute' : 'About 2 minutes'}
-              onPress={onStart}
-              disabled={!person}
-            />
+            <Glowing>
+              <BigButton
+                size="hero"
+                icon="mic"
+                label={evening ? 'Start my evening check-in' : 'Start my check-in'}
+                hint={evening ? 'About 1 minute' : 'About 2 minutes'}
+                onPress={onStart}
+                disabled={!person}
+              />
+            </Glowing>
           )}
           <QuietButton label="Change setup" onPress={() => setConfirmSignOut(true)} />
         </>
       }
     >
-      <Text style={styles.date}>{today}</Text>
-      <Title>{hello}{person ? `, ${person.name}` : ''}</Title>
+      <Rise>
+        <Text style={styles.date}>{today}</Text>
+        <Title>{hello}{person ? `, ${person.name}` : ''}</Title>
+      </Rise>
       {main}
       {!!error && (
         <View style={styles.error}>
@@ -134,8 +163,9 @@ export default function SeniorHome({ personId, onStart, onSignOut }: {
 }
 
 const styles = StyleSheet.create({
-  date: { fontSize: type.body, fontWeight: '700', color: colors.primary, marginBottom: space.xs },
+  date: { fontFamily: font.bodyBold, fontSize: type.body, color: colors.primary, marginBottom: space.xs },
   centre: { flex: 1, justifyContent: 'center', paddingVertical: space.l },
-  doneTitle: { fontSize: type.huge, fontWeight: '800', color: colors.green, textAlign: 'center', marginBottom: space.s },
+  doneTitle: { fontFamily: font.display, fontSize: type.huge, color: colors.green, textAlign: 'center', marginBottom: space.s },
+  glow: { position: 'absolute', left: -6, right: -6, top: -8, bottom: -8, borderRadius: radius.xl + 8, backgroundColor: brand.glow },
   error: { backgroundColor: colors.amberSoft, borderRadius: 20, padding: space.m, marginBottom: space.m },
 });

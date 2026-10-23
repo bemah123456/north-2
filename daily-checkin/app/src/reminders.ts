@@ -12,7 +12,7 @@ export async function scheduleDailyReminder(checkinTime: string, eveningTime: st
   const [hour, minute] = checkinTime.split(':').map(Number);
   await Notifications.cancelAllScheduledNotificationsAsync();
   await Notifications.scheduleNotificationAsync({
-    content: { title: 'Daily check-in', body: 'Time for your daily check-in. It only takes 2 minutes.' },
+    content: { title: 'Clari', body: 'Time for your daily check-in. It only takes 2 minutes.' },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour, minute },
   });
   if (eveningTime) {

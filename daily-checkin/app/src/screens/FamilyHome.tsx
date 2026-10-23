@@ -5,8 +5,10 @@ import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Alert, api, DayRow, Person, Recording, Result } from '../api';
 import { NowPlaying, useCheckinPlayer } from '../listen';
-import { colors, maxScale, statusColor, statusSoft, type } from '../theme';
-import { BigButton, Body, Card, QuietButton, Screen, Section, StatusIcon, StatusPill, Title } from '../ui';
+import { Icon } from '../graphics';
+import { Rise } from '../motion';
+import { colors, font, maxScale, statusColor, statusSoft, type } from '../theme';
+import { BigButton, Body, BrandBar, Card, QuietButton, Screen, Section, StatusIcon, StatusPill, Title } from '../ui';
 
 function niceDate(iso: string) {
   const d = new Date(`${iso}T12:00:00`);
@@ -79,8 +81,8 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
   const latest = days[0];
   const week = days.slice(0, 7).reverse();
   return (
-    <Screen>
-      <Text style={styles.brand}>Family view</Text>
+    <Screen backdrop="calm">
+      <BrandBar label="Family view" />
       <Title>{person?.name ?? 'Check-ins'}</Title>
       {!!error && (
         <Card tint={colors.amberSoft}>
@@ -89,6 +91,7 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
         </Card>
       )}
       {latest && (
+        <Rise>
         <Card tint={statusSoft[latest.status]} accent={statusColor[latest.status]}>
           <Text style={styles.smallCaps}>Today</Text>
           <View style={styles.todayRow}>
@@ -108,15 +111,16 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
             <ListenButton checkinId={latest.checkin_id} now={player.now} onPlay={player.play} onStop={player.stop} label="Listen to today's check-in" />
           )}
         </Card>
+        </Rise>
       )}
 
       {week.length > 1 && (
         <View style={styles.week} accessibilityLabel="The last week at a glance">
-          {week.map((row) => (
-            <View key={row.date} style={styles.weekDay}>
+          {week.map((row, i) => (
+            <Rise key={row.date} order={3 + i} style={styles.weekDay}>
               <StatusIcon status={row.status} size={36} />
               <Text style={styles.weekLabel} maxFontSizeMultiplier={maxScale.tight}>{new Date(`${row.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' })}</Text>
-            </View>
+            </Rise>
           ))}
         </View>
       )}
@@ -137,7 +141,7 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
                 <Text style={styles.date}>{niceDate(row.date)}</Text>
                 <StatusPill status={row.status} label={row.headline} />
               </View>
-              <Text style={styles.chevron}>{open === row.date ? '⌃' : '⌄'}</Text>
+              <Icon name={open === row.date ? 'chevronUp' : 'chevronDown'} size={30} color={colors.primary} weight={2.8} />
             </View>
             {open === row.date && (
               <View style={{ marginTop: 12 }}>
@@ -249,7 +253,8 @@ function ListenButton({ checkinId, now, onPlay, onStop, label }: {
   return (
     <View style={{ marginTop: 12 }}>
       <BigButton
-        label={playing ? '■  Stop' : `▶  ${label}`}
+        icon={playing ? 'stop' : 'play'}
+        label={playing ? 'Stop' : label}
         kind={playing ? 'secondary' : 'primary'}
         onPress={() => (playing ? onStop() : onPlay(checkinId))}
       />
@@ -285,9 +290,7 @@ function Detail({ result, onReport, player, sharing }: {
       {result.change && (
         <>
           <Text style={styles.section}>Compared with their usual</Text>
-          <Body>
-            {result.change.label} ({result.change.score} of 100)
-          </Body>
+          <Body>{result.change.label}</Body>
           <Body muted>
             {result.change.baseline_days >= 2
               ? `Answers, timing, voice and alertness together, against their last ${result.change.baseline_days} usual days.`
@@ -320,7 +323,7 @@ function Detail({ result, onReport, player, sharing }: {
           <Text style={styles.q}>{it.prompt}</Text>
           <Text style={styles.a}>
             "{it.transcript || '(no answer)'}"
-            {it.correct === true ? '  ✓' : it.correct === false ? '  ✗' : ''}
+            {it.correct === true ? '  (right)' : it.correct === false ? '  (wrong)' : ''}
             {it.out_of ? `  (${it.correct_items} of ${it.out_of})` : ''}
             {it.one_month_dropped
               ? '  (one month may have been misheard)'
@@ -328,7 +331,8 @@ function Detail({ result, onReport, player, sharing }: {
           </Text>
           {recorded.has(it.exercise_id) && (
             <QuietButton
-              label={playingHere === it.exercise_id ? '■ Stop' : '▶ Hear their answer'}
+              icon={playingHere === it.exercise_id ? 'stop' : 'play'}
+              label={playingHere === it.exercise_id ? 'Stop' : 'Hear their answer'}
               onPress={() => (playingHere === it.exercise_id ? player.stop() : player.play(result.checkin_id, { only: it.exercise_id }))}
             />
           )}
@@ -347,21 +351,19 @@ function Detail({ result, onReport, player, sharing }: {
 }
 
 const styles = StyleSheet.create({
-  brand: { fontSize: type.small, fontWeight: '800', color: colors.primary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
-  smallCaps: { fontSize: type.small, fontWeight: '700', color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  smallCaps: { fontFamily: font.bodyBold, fontSize: type.small, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.2 },
   todayRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginVertical: 10 },
-  headline: { flex: 1, fontSize: type.big, lineHeight: 34, fontWeight: '800' },
+  headline: { flex: 1, fontFamily: font.display, fontSize: type.big, lineHeight: 34 },
   week: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: colors.card, borderRadius: 24, borderWidth: 1, borderColor: colors.border, paddingVertical: 14, paddingHorizontal: 10, marginBottom: 4 },
   weekDay: { alignItems: 'center', gap: 6, flex: 1 },
-  weekLabel: { fontSize: type.small, fontWeight: '700', color: colors.muted },
-  section: { fontSize: type.body, fontWeight: '800', color: colors.text, marginTop: 16, marginBottom: 8 },
+  weekLabel: { fontFamily: font.bodyBold, fontSize: type.small, color: colors.muted },
+  section: { fontFamily: font.display, fontSize: type.body, color: colors.text, marginTop: 16, marginBottom: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   pair: { flexDirection: 'row', gap: 12 },
-  chevron: { fontSize: 32, color: colors.primary, fontWeight: '700' },
-  date: { fontSize: type.body, fontWeight: '700', color: colors.text, marginBottom: 6 },
-  settingTitle: { fontSize: type.body, fontWeight: '800', color: colors.text, marginBottom: 6 },
-  q: { fontSize: type.small, color: colors.muted },
-  a: { fontSize: type.body, color: colors.text },
+  date: { fontFamily: font.bodyBold, fontSize: type.body, color: colors.text, marginBottom: 6 },
+  settingTitle: { fontFamily: font.display, fontSize: type.body, color: colors.text, marginBottom: 6 },
+  q: { fontFamily: font.body, fontSize: type.small, color: colors.muted },
+  a: { fontFamily: font.bodyBold, fontSize: type.body, color: colors.text },
   answer: { marginBottom: 10, paddingLeft: 10, borderLeftWidth: 4, borderLeftColor: 'transparent' },
   answerOn: { borderLeftColor: colors.primary },
 });

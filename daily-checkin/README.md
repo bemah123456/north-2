@@ -33,6 +33,8 @@ The total uses the 4AT bands: 4+ is "Call their doctor today", 1 to 3 (or "some 
 
 ## Design for older users
 
+The app is called **Clari**. Its look comes from the logo: flat solid colours with no gradients (navy for text and buttons, the logo's teal for graphics; the logo itself is one solid teal), Nunito for headings and Atkinson Hyperlegible (made for low vision) for reading. Animations are calm and each one means something (listening, reading aloud, done); all of them turn off with the phone's reduce-motion setting. Screens: `screenshots/clari/`.
+
 The senior's phone shows one big button a day and nothing else to think about. Text is 22pt or larger, every colour reads at 7:1 contrast or better, and statuses always carry a symbol and a word as well as a colour. The question is read aloud, a pulsing circle shows when the app is listening, and the main action sits at the bottom where a thumb reaches it. Rarely used actions (change setup, server settings) are small links, and "Change setup" asks first so a stray tap can't disconnect anyone. Before and after screenshots are in `screenshots/redesign/`.
 
 ## Run it

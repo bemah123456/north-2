@@ -1,17 +1,19 @@
-// Large type and strong contrast for older eyes and shaky hands. Every text
-// colour here reads at 7:1 or better on the background and on its own soft
-// tint (WCAG AAA), and no status is shown by colour alone: each one also has
-// a symbol and a word.
+// Clari's look, taken from the logo, in flat solid colours (no gradients):
+// navy for text and buttons, and the logo's teal for graphics. White icons on
+// the teal read at 3.6:1; text never sits on it. Large type and strong
+// contrast for older eyes and shaky hands: every text colour here reads at 7:1 or better on the background and on its
+// own soft tint (WCAG AAA), and no status is shown by colour alone: each one
+// also has an icon and a word.
 export const colors = {
-  bg: '#F7F3EC',
+  bg: '#F4F8FB',
   card: '#FFFFFF',
-  text: '#1A1612',
-  muted: '#4A443C',
-  primary: '#14524A',
-  primaryPressed: '#0D3B35',
+  text: '#0F2236',
+  muted: '#3A4B5E',
+  primary: '#1A457D', // the wordmark's navy
+  primaryPressed: '#12335E',
   primaryText: '#FFFFFF',
-  primarySoft: '#E1EFEA',
-  border: '#D9D1C4',
+  primarySoft: '#E6F0F9',
+  border: '#D3DEE8',
   green: '#185736',
   greenSoft: '#E3F2E8',
   amber: '#734100',
@@ -19,8 +21,12 @@ export const colors = {
   red: '#8F1D17',
   redSoft: '#FBE4E1',
   grey: '#4B4B4B',
-  greySoft: '#ECEAE6',
+  greySoft: '#ECEEF1',
 };
+
+// The logo mark's solid teal, a soft tint of it for glows and rings, and a
+// paler one for background shapes. Graphics only.
+export const brand = { solid: '#3694A1', glow: '#CDE7EA', wash: '#E4F1F3' };
 
 export const statusColor: Record<string, string> = {
   unlikely: colors.green,
@@ -40,21 +46,35 @@ export const statusSoft: Record<string, string> = {
   day_off: colors.greySoft,
 };
 
-// A symbol for each status, so it reads without colour too.
-export const statusSymbol: Record<string, string> = {
-  unlikely: '✓',
-  possible_impairment: '!',
-  possible_delirium: '!',
-  missed: '?',
-  pending: '…',
-  day_off: '–',
+// Which icon each status gets (see graphics.tsx), so it reads without colour too.
+export const statusIcon: Record<string, 'check' | 'alert' | 'question' | 'dots' | 'dash'> = {
+  unlikely: 'check',
+  possible_impairment: 'alert',
+  possible_delirium: 'alert',
+  missed: 'question',
+  pending: 'dots',
+  day_off: 'dash',
 };
 
-export const type = { giant: 44, huge: 36, big: 28, body: 22, small: 18 };
+// Nunito's rounded letters match the wordmark; Atkinson Hyperlegible was
+// designed for readers with low vision. Loaded in App.tsx.
+export const font = {
+  display: 'Nunito_800ExtraBold',
+  heading: 'Nunito_700Bold',
+  body: 'AtkinsonHyperlegible_400Regular',
+  bodyBold: 'AtkinsonHyperlegible_700Bold',
+};
+
+export const type = { giant: 44, huge: 34, big: 27, body: 22, small: 18 };
 
 export const space = { xs: 6, s: 12, m: 20, l: 28, xl: 40 };
 
-export const radius = { m: 16, l: 24, round: 999 };
+export const radius = { m: 16, l: 24, xl: 32, round: 999 };
+
+// Shared motion timings (ms). Quick press feedback, calm entrances, exits a
+// little faster than entrances, and slow ambient loops. All of it is turned
+// off when the phone asks for reduced motion (motion.ts).
+export const motion = { press: 120, enter: 380, exit: 240, stagger: 45, breathe: 2400, ambient: 9000 };
 
 // Text still grows with the phone's own text-size setting, but headings and
 // buttons stop at 1.5x so a big setting can't push the main button off screen.
