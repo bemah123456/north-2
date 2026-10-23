@@ -19,6 +19,7 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
   const [created, setCreated] = useState<Person | null>(null);
   const [code, setCode] = useState('');
   const [address, setAddress] = useState(server.get());
+  const [accessKey, setAccessKey] = useState(server.token());
   const [details, setDetails] = useState(emptyDetails());
   const [you, setYou] = useState({ family_name: '', family_phone: '' });
 
@@ -59,7 +60,7 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
   async function saveServer() {
     setError('');
     try {
-      setAddress(await server.set(address));
+      setAddress(await server.set(address, accessKey));
       setStep('choose');
     } catch (e) {
       setError((e as Error).message);
@@ -72,7 +73,7 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
         footer={
           <>
             <BigButton label="Save" onPress={saveServer} />
-            <BigButton label="Back" kind="secondary" onPress={() => { setError(''); setAddress(server.get()); setStep('choose'); }} />
+            <BigButton label="Back" kind="secondary" onPress={() => { setError(''); setAddress(server.get()); setAccessKey(server.token()); setStep('choose'); }} />
           </>
         }
       >
@@ -80,6 +81,8 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
         <Title>Server address</Title>
         <Body>Only change this if whoever runs your check-in server gave you an address.</Body>
         <Field label="Address" value={address} onChangeText={setAddress} autoCapitalize="none" autoCorrect={false} keyboardType="url" />
+        <Field label="Access key, if they gave you one" value={accessKey} onChangeText={setAccessKey} autoCapitalize="none"
+          autoCorrect={false} secureTextEntry />
         {!!error && <Body>{error}</Body>}
       </Screen>
     );

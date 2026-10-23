@@ -1,34 +1,46 @@
 // Talks to the check-in server (server/checkin/api.py).
 // Set EXPO_PUBLIC_API_URL to the server's address. On a phone that's your
 // computer's LAN address (e.g. http://192.168.1.20:8000), not localhost.
-// An installed build can also be pointed at another server from the setup
-// screen; that address is saved on the phone and wins over the built-in one.
+// An installed build can also be pointed at another server, with its access
+// key (the server's API_TOKEN), from the setup screen. Both are saved on the
+// phone and win over the built-in ones, so one APK works with any server.
 
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DEFAULT_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
-const TOKEN = process.env.EXPO_PUBLIC_API_TOKEN;
+const DEFAULT_TOKEN = process.env.EXPO_PUBLIC_API_TOKEN ?? '';
 const SERVER_KEY = 'checkin.server';
+const TOKEN_KEY = 'checkin.token';
 let BASE = DEFAULT_BASE;
+let TOKEN = DEFAULT_TOKEN;
 
 export const server = {
   get: () => BASE,
+  token: () => TOKEN,
   async load() {
-    const saved = await AsyncStorage.getItem(SERVER_KEY);
+    const [saved, token] = await Promise.all([AsyncStorage.getItem(SERVER_KEY), AsyncStorage.getItem(TOKEN_KEY)]);
     if (saved) BASE = saved;
+    if (token !== null) TOKEN = token;
     return BASE;
   },
-  // Checks the address answers before saving it. An empty address goes back
-  // to the built-in one.
-  async set(url: string) {
+  // Checks the address answers, and that the server takes the key, before
+  // saving them. An empty address goes back to the built-in one.
+  async set(url: string, token = TOKEN) {
     const next = url.trim().replace(/\/+$/, '') || DEFAULT_BASE;
+    const key = token.trim();
     if (!/^https?:\/\//.test(next)) throw new Error('The address should start with https:// or http://');
     const res = await fetch(`${next}/health`).catch(() => null);
     if (!res?.ok) throw new Error("Couldn't reach a check-in server at that address.");
+    // No one has this code, so a working key gets "not found" and a wrong one gets 401.
+    const probe = await fetch(`${next}/people/key-check`, key ? { headers: { Authorization: `Bearer ${key}` } } : {}).catch(() => null);
+    if (probe?.status === 401) throw new Error(key ? 'The server refused that access key.' : 'This server needs an access key.');
     BASE = next;
+    TOKEN = key;
     if (next === DEFAULT_BASE) await AsyncStorage.removeItem(SERVER_KEY);
     else await AsyncStorage.setItem(SERVER_KEY, next);
+    if (key === DEFAULT_TOKEN) await AsyncStorage.removeItem(TOKEN_KEY);
+    else await AsyncStorage.setItem(TOKEN_KEY, key);
     return BASE;
   },
 };
