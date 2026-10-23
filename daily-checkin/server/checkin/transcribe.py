@@ -6,7 +6,10 @@ Set STT_PROVIDER to one of:
               weights: a Hugging Face id (default openai/whisper-small;
               small.en is more accurate in a quiet room but much worse with
               a TV on) or a folder, such as the model fine-tuned on older
-              voices.
+              voices. LOCAL_WHISPER_ENGINE=faster-whisper runs the same
+              Whisper through faster-whisper (pip install faster-whisper),
+              about 4x faster on a laptop CPU; FASTER_WHISPER_MODEL picks its
+              weights (default "small").
   "parakeet"  free: NVIDIA Parakeet TDT 0.6B v2 on the CPU (pip install
               sherpa-onnx; unpack sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8
               from the sherpa-onnx releases and set PARAKEET_DIR to it)
@@ -224,6 +227,8 @@ def _load_local():
 
 
 def _local_whisper(audio: bytes, expect: str | None = None) -> tuple[str, list[Word]]:
+    if os.environ.get("LOCAL_WHISPER_ENGINE") == "faster-whisper":
+        return _faster_whisper(audio, expect)
     model = os.environ.get("LOCAL_WHISPER_MODEL", DEFAULT_LOCAL_MODEL)
     # English-only checkpoints (".en") reject a language setting.
     gen = {} if model.endswith(".en") else {"language": "english", "task": "transcribe"}
@@ -248,6 +253,39 @@ def _local_whisper(audio: bytes, expect: str | None = None) -> tuple[str, list[W
         if text and start is not None:
             words.append(Word(text, float(start), float(end if end is not None else start)))
     return out.get("text", "").strip(), words
+
+
+# The same Whisper weights converted for CTranslate2, run with 8-bit
+# weights. On a 2-core laptop it took about 2 s per short answer, against
+# 6 to 13 s through transformers, with the same transcripts. A folder
+# works too: convert a fine-tuned model with ct2-transformers-converter.
+_faster_model = None
+
+
+def _load_faster():
+    global _faster_model
+    if _faster_model is None:
+        try:
+            from faster_whisper import WhisperModel
+        except ImportError as e:
+            raise TranscriptionUnavailable("pip install faster-whisper to use LOCAL_WHISPER_ENGINE=faster-whisper") from e
+        _faster_model = WhisperModel(os.environ.get("FASTER_WHISPER_MODEL", "small"), device="cpu",
+                                     compute_type=os.environ.get("FASTER_WHISPER_COMPUTE", "int8"))
+    return _faster_model
+
+
+def _faster_whisper(audio: bytes, expect: str | None = None) -> tuple[str, list[Word]]:
+    samples = _decode_16k(audio)
+    if len(samples) < SR // 10:
+        return "", []
+    model = _load_faster()
+    name = os.environ.get("FASTER_WHISPER_MODEL", "small")
+    lang = {} if name.endswith(".en") else {"language": "en"}
+    segments, _ = model.transcribe(samples, word_timestamps=True, initial_prompt=expect, beam_size=5, **lang)
+    segments = list(segments)
+    words = [Word(w.word.strip(), float(w.start), float(w.end))
+             for seg in segments for w in (seg.words or []) if w.word.strip()]
+    return "".join(seg.text for seg in segments).strip(), words
 
 
 _parakeet_recognizer = None
