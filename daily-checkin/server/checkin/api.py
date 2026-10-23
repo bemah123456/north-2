@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
-from . import notify, report, store, transcribe
+from . import listen, notify, report, store, transcribe
 from .baseline import load_model
 from .change import duration_z
 from .exercises import build_checkin, build_session
@@ -33,6 +33,7 @@ log = logging.getLogger(__name__)
 
 app = FastAPI(title="Daily check-in")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.include_router(listen.router)  # the family's private listening links
 
 
 def auth(authorization: str | None = Header(default=None)) -> None:
@@ -74,6 +75,7 @@ class PersonIn(BaseModel):
     family_phone: str | None = None
     senior_push_token: str | None = None
     family_push_token: str | None = None
+    share_recordings: bool = Field(True, description="Send the family each check-in's recording when it's done")
     evening_checkin: bool = Field(False, description="A shorter second check-in in the evening, compared with the morning")
     evening_time: str = Field("19:00", pattern=CLOCK)
 
@@ -87,6 +89,7 @@ class PersonPatch(BaseModel):
     family_phone: str | None = None
     senior_push_token: str | None = None
     family_push_token: str | None = None
+    share_recordings: bool | None = None
     evening_checkin: bool | None = None
     evening_time: str | None = Field(None, pattern=CLOCK)
 
@@ -339,6 +342,7 @@ async def submit_checkin(pid: str, request: Request) -> dict:
                             duration)
     for ex_id, (data, _, ext) in audio.items():
         store.save_audio(cid, ex_id, data, ext)
+    listen.after_checkin(p, cid, result, day.isoformat(), "morning", utcnow().isoformat())
     result["checkin_id"] = cid
     return result
 
@@ -357,6 +361,7 @@ def _submit_evening(p: dict, day: date, exercises, given: dict, audio: dict, hou
     for ex_id, (data, _, ext) in audio.items():
         store.save_audio(cid, ex_id, data, ext)
     store.update_checkin_result(morning["id"], apply_evening(morning["result"], cid, evening))
+    listen.after_checkin(p, cid, evening, day.isoformat(), "evening", utcnow().isoformat())
     evening["checkin_id"] = cid
     evening["session"] = "evening"
     return evening
@@ -469,6 +474,13 @@ def alert_feedback(pid: str, body: AlertFeedback) -> dict:
     if not store.set_alert_feedback(pid, body.date.isoformat(), body.kind, body.was_real, body.note):
         raise HTTPException(404, "No such alert")
     return {"ok": True}
+
+
+@app.get("/checkins/{cid}/recording", dependencies=[Depends(auth)])
+def recording(cid: str) -> dict:
+    """The whole check-in for the family to listen to: each question in
+    order, what the app heard, and where its recording is."""
+    return listen.recording(cid)
 
 
 @app.get("/checkins/{cid}/audio/{exercise_id}", dependencies=[Depends(auth)])

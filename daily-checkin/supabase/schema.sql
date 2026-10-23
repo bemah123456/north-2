@@ -16,7 +16,8 @@ create table people (
   family_push_token text,
   created_date date not null,
   evening_checkin boolean not null default false,
-  evening_time time not null default '19:00'
+  evening_time time not null default '19:00',
+  share_recordings boolean not null default true
 );
 
 create table checkins (
@@ -31,6 +32,7 @@ create table checkins (
   duration_s real,
   ease integer,
   session text not null default 'morning' check (session in ('morning', 'evening')),
+  listen_key text,  -- secret part of the family's link to hear this check-in
   unique (person_id, local_date, session)
 );
 
