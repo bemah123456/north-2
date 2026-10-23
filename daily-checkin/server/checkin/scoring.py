@@ -114,6 +114,8 @@ def score_checkin(
             item["misheard"] = True
         if retry == "one_month_dropped":
             item["one_month_dropped"] = True
+        if g.get("unsure"):
+            item["hard_to_hear"] = True  # still scored; shown to the family
         if ex.part == "orientation":
             ok, by = (None, "rules") if misheard else _check_orientation(ex, text, person, day)
             if ok is None:

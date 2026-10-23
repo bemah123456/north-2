@@ -49,7 +49,7 @@ function say(text: string, options: Speech.SpeechOptions = {}) {
   speakerMode().then(() => Speech.speak(text, { rate: SPEECH_RATE, ...options }));
 }
 
-type Phase = 'loading' | 'roomcheck' | 'noisy' | 'tv' | 'checking' | 'speaking' | 'listening' | 'typing' | 'sending' | 'done' | 'error';
+type Phase = 'loading' | 'roomcheck' | 'noisy' | 'tv' | 'quiet' | 'checking' | 'speaking' | 'listening' | 'typing' | 'sending' | 'done' | 'error';
 
 export default function CheckIn({ personId, typedMode, onFinished }: {
   personId: string;
@@ -80,6 +80,7 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
   const askedAgain = useRef(new Set<string>());
   const lastWasNoisy = useRef(false);
   const tvWarned = useRef(false);
+  const quietAsked = useRef(false);
   const pendingUri = useRef<string | undefined>(undefined);
 
   useEffect(() => {
@@ -218,6 +219,17 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
         say('It sounds like a TV or radio is on. Could you turn it off?');
         return;
       }
+      // The first time the speech model itself isn't sure what it heard,
+      // ask for a quieter spot before asking again. After that, just ask
+      // again, so it doesn't nag.
+      if (check.ask_again && check.reason === 'unsure' && !quietAsked.current && !tvWarned.current) {
+        quietAsked.current = true;
+        askedAgain.current.add(ex.id);
+        pendingUri.current = uri;
+        setPhase('quiet');
+        say("I'm having trouble hearing you. Could you move somewhere quieter? Then I'll ask again.");
+        return;
+      }
       if (check.ask_again) {
         askedAgain.current.add(ex.id);
         ask(ex, "Sorry, I didn't quite catch that. Let's try once more.");
@@ -300,6 +312,23 @@ export default function CheckIn({ personId, typedMode, onFinished }: {
         <Title>It's a bit noisy</Title>
         <Body>Could you turn down the TV or radio, or go somewhere quieter?</Body>
         <Body muted>Background voices make it hard to hear your answers.</Body>
+      </Screen>
+    );
+  }
+  if (phase === 'quiet') {
+    return (
+      <Screen
+        footer={
+          <>
+            <BigButton label="I'm ready" onPress={() => afterTv(true)} />
+            <BigButton label="Keep going" kind="secondary" onPress={() => afterTv(false)} />
+          </>
+        }
+      >
+        <View style={styles.notice}><Icon name="mic" size={44} color={colors.amber} /></View>
+        <Title>I'm having trouble hearing you</Title>
+        <Body>Could you move somewhere quieter?</Body>
+        <Body muted>Then I'll ask that question again.</Body>
       </Screen>
     );
   }

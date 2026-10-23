@@ -89,7 +89,7 @@ export type Result = {
   change?: Change;
   drowsiness_signs?: string[];
   evening?: { checkin_id: string; fluctuation: 'none' | 'watch' | 'scored'; reasons: string[] };
-  items: { exercise_id: string; prompt: string; transcript: string; correct?: boolean | null; correct_items?: number; out_of?: number | null; misheard?: boolean; one_month_dropped?: boolean }[];
+  items: { exercise_id: string; prompt: string; transcript: string; correct?: boolean | null; correct_items?: number; out_of?: number | null; misheard?: boolean; one_month_dropped?: boolean; hard_to_hear?: boolean }[];
   disclaimer: string;
 };
 
@@ -127,7 +127,8 @@ export async function audioSource(path: string): Promise<string | { uri: string;
   return { uri, headers: { Authorization: `Bearer ${TOKEN}` } };
 }
 
-export type AnswerCheck = { ask_again: boolean; noisy: boolean };
+// reason "unsure": the speech model itself doubted what it heard.
+export type AnswerCheck = { ask_again: boolean; noisy: boolean; reason?: 'misheard' | 'one_month_dropped' | 'unsure' | null };
 
 // One answer: a recording (phone) or typed text (web demo, or no mic).
 export type Answer = { exerciseId: string; audioUri?: string; transcript?: string };

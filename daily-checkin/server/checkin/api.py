@@ -258,13 +258,12 @@ def _hear(ex, data: bytes, content_type: str | None) -> dict:
     if key not in _heard:
         try:
             expect = transcribe.MONTHS_BACKWARDS if ex.kind == "months_backwards" else None
-            text, words = transcribe.transcribe(data, content_type, expect)
+            heard = transcribe.transcribe_detail(data, content_type, expect)
         except transcribe.UnreadableRecording:
             return dict(NOTHING_HEARD)
         except transcribe.TranscriptionUnavailable:
             raise HTTPException(503, "Speech-to-text isn't set up on the server yet; "
                                      "set STT_PROVIDER or use typed answers")
-        heard = {"transcript": text, "words": words}
         heard.update(transcribe.clip_check(data) or {})
         if len(_heard) >= 200:
             _heard.pop(next(iter(_heard)))
@@ -287,7 +286,10 @@ async def check_answer(pid: str, request: Request) -> dict:
     if ex is None or f is None or isinstance(f, str):
         raise HTTPException(400, "Send exercise_id and audio")
     heard = _hear(ex, await f.read(), f.content_type)
-    reason = retry_reason(ex, heard)
+    # The model's own doubt only asks again (and, the first time, for a
+    # quieter room); it never stops the answer being scored, because a
+    # confused answer can sound hesitant too.
+    reason = retry_reason(ex, heard) or ("unsure" if heard.get("unsure") else None)
     return {"ask_again": reason is not None, "reason": reason, "noisy": bool(heard.get("noisy"))}
 
 
