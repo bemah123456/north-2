@@ -86,10 +86,11 @@ def score_checkin(
     routine: dict | None = None,
 ) -> dict:
     """given: exercise id -> {"transcript": str, "words": list[Word] | None,
-    "heard_speech": bool?, "noisy": bool?}. The last two are set for
-    recorded answers. When a clip has speech but the transcript can't be an
-    answer, the item is left for a person to check instead of counted as a
-    mistake. Three or more noisy clips mark the check-in noisy.
+    "heard_speech": bool?, "noisy": bool?, "audio": bytes?, "speech_note":
+    {"rating", "reason"}?}. The last four are set for recorded answers (the
+    audio for the Gemini judge, the note with GEMINI_SPEECH_NOTE=1). When a
+    clip has speech but the transcript can't be an answer, the item is left
+    for a person to check instead of counted as a mistake. Three or more noisy clips mark the check-in noisy.
     history: feature dicts from this person's earlier normal check-ins.
     past: the `measures` of the same check-ins, for the combined score.
     routine: {"late", "missed_yesterday", "duration_z"} from the server."""
@@ -116,12 +117,16 @@ def score_checkin(
             item["one_month_dropped"] = True
         if g.get("unsure"):
             item["hard_to_hear"] = True  # still scored; shown to the family
+        if g.get("transcript_by"):
+            item["transcript_by"] = g["transcript_by"]
+        if g.get("speech_note"):
+            item["speech_note"] = g["speech_note"]
         if ex.part == "orientation":
             ok, by = (None, "rules") if misheard else _check_orientation(ex, text, person, day)
             if ok is None:
-                verdict = judge.judge_answer(ex.prompt, text, _facts(ex, person, day))
+                verdict = judge.judge_answer(ex.prompt, text, _facts(ex, person, day), g.get("audio"))
                 if verdict:
-                    ok, by = verdict["correct"], "claude"
+                    ok, by = verdict["correct"], verdict.get("by", "claude")
                     item["judge_reason"] = verdict["reason"]
             item.update(correct=ok, checked_by=by)
             if ok is False:
@@ -212,11 +217,16 @@ def score_checkin(
     # 4. Acute change: the family's word, an evening worse than the morning
     # (added later), or the combined change score.
     normal = C.personal_normal(past or [])
-    e = C.evidence(measures, normal, prob, signs)
+    notes = [i["speech_note"]["rating"] for i in items if i.get("speech_note")]
+    note = round(sum(notes) / len(notes), 2) if notes else None
+    measures["speech_note"] = note
+    e = C.evidence(measures, normal, prob, signs, note)
     if e["digits"] >= 1:
         reasons.append(f"remembered fewer numbers than usual ({digits} of 4)")
     if e["speed"] >= 1:
         reasons.append("slower than usual at the backwards task")
+    if e.get("speech_note", 0) >= 0.5 and C.combine(e, noisy)["level"] != "usual":
+        reasons.append("their speech sounded unusual to the automatic listener")
     if family_says_different:
         reasons.insert(0, FAMILY_REASON)
 

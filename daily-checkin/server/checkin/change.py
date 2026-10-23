@@ -10,6 +10,12 @@ from usual), and the evidence is added up:
 - voice:     the voice model's change probability (hesitation, pauses, ...)
 - drowsy:    signs of reduced alertness (see `drowsiness_signs`)
 - evening:   the evening check-in was worse than the morning
+- speech_note: Gemini's rating of how unusual the speech sounded (only with
+  GEMINI_SPEECH_NOTE=1). A model's impression, not a measurement against
+  their own normal, so it is capped at SPEECH_NOTE_CAP, counts only up to
+  the rest of the evidence (nothing else, nothing added), and is never one
+  of the "two kinds" a big change needs. It can tip existing evidence over
+  a line; it can never raise one alone.
 
 A total of 2.5 or more is "some change" (keep an eye on it, even when no
 answer was wrong). 4.5 or more, with at least two kinds of evidence of 1
@@ -34,7 +40,14 @@ BIG_CHANGE = 4.5
 MAX_EVIDENCE = 3.0
 # Voice and timing are less trustworthy with a TV on, and digits get misheard.
 NOISY_WEIGHT = 0.5
-NOISY_PARTS = ("digits", "speed", "voice")
+NOISY_PARTS = ("digits", "speed", "voice", "speech_note")
+# Gemini's 0-3 rating per answer, averaged over the check-in. 1 ("slightly
+# hesitant") is ordinary for many older adults and adds nothing; 3 adds the
+# cap. The note adds at most 1 and no more than the rest of the evidence, so
+# "some change" (2.5) still needs 1.5 from elsewhere and "a big change"
+# (4.5) needs 3.5 from elsewhere in two other kinds: alone it does nothing.
+SPEECH_NOTE_CAP = 1.0
+SPEECH_NOTE_FREE = 1.0
 
 # Before a person has a normal of their own, assume a well older adult:
 # no mistakes, and three of four digits said back. Each assumption counts
@@ -106,7 +119,16 @@ def duration_z(durations: list[float], today: float | None) -> float | None:
     return (today - mean(durations)) / max(pstdev(durations), DURATION_FLOOR_S)
 
 
-def evidence(today: dict, normal: dict, voice_probability: float | None, signs: list[str]) -> dict[str, float]:
+def speech_note_evidence(rating: float | None) -> float:
+    """The mean 0-3 rating to evidence: 0 up to SPEECH_NOTE_FREE, then
+    rising to SPEECH_NOTE_CAP at 3."""
+    if rating is None:
+        return 0.0
+    return max(0.0, min(SPEECH_NOTE_CAP, SPEECH_NOTE_CAP * (rating - SPEECH_NOTE_FREE) / (3 - SPEECH_NOTE_FREE)))
+
+
+def evidence(today: dict, normal: dict, voice_probability: float | None, signs: list[str],
+             speech_note: float | None = None) -> dict[str, float]:
     e = {
         "answers": _clip(max(0.0, today["orientation_mistakes"] - normal["orientation_mistakes"])
                          + max(0.0, (today["attention_score"] or 0) - normal["attention_score"])),
@@ -127,13 +149,18 @@ def evidence(today: dict, normal: dict, voice_probability: float | None, signs: 
         # 0.4 was "worth mentioning" and 0.7 used to score 4 points alone;
         # now 0.9 or more gives the most evidence one part can give.
         e["voice"] = _clip(MAX_EVIDENCE * (voice_probability - 0.4) / 0.5)
+    if speech_note is not None:
+        e["speech_note"] = speech_note_evidence(speech_note)
     return {k: round(v, 2) for k, v in e.items()}
 
 
 def combine(e: dict[str, float], noisy: bool = False) -> dict:
     weighted = {k: v * (NOISY_WEIGHT if noisy and k in NOISY_PARTS else 1.0) for k, v in e.items()}
+    if "speech_note" in weighted:  # capped again here: the evening adds evidence later
+        rest = sum(v for k, v in weighted.items() if k != "speech_note")
+        weighted["speech_note"] = min(weighted["speech_note"], SPEECH_NOTE_CAP, rest)
     total = sum(weighted.values())
-    strong = sum(1 for v in weighted.values() if v >= 1)
+    strong = sum(1 for k, v in weighted.items() if v >= 1 and k != "speech_note")
     level = "big" if total >= BIG_CHANGE and strong >= 2 else "some" if total >= SOME_CHANGE else "usual"
     return {
         "score": round(100 * min(total, 2 * MAX_EVIDENCE) / (2 * MAX_EVIDENCE)),

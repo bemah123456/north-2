@@ -35,6 +35,16 @@ Android release builds refuse plain `http://` addresses, so the test build needs
 | Server push notifications through the development/production build | Claude |
 | Turn off `DEMO_MODE`, set `API_TOKEN`, and delete test recordings | Claude |
 | Privacy policy and in-app consent text (store listings require a privacy policy URL) | Claude drafts, you approve |
+| If any Gemini flag is on (`GEMINI_TRANSCRIBE`, `GEMINI_SPEECH_NOTE`, `JUDGE_ENGINE=gemini`): switch to Vertex AI with zero data retention and a BAA, and add the consent wording below | You (Google Cloud account, BAA), Claude sets the server up |
+
+### Privacy with Gemini
+
+The Gemini features are off by default. When one is on, each recorded answer (the person's voice, which is health data) is sent to Google. For real people:
+
+- Use **Vertex AI** (`GOOGLE_CLOUD_PROJECT`), not the Developer API key. The free Developer API tier may use what it's sent to improve Google's products, so only synthetic or public audio goes there.
+- On Vertex, turn off data caching for the project (zero data retention), keep abuse-monitoring logging off where Google allows it, and sign Google Cloud's **BAA** before any US health data goes through it. Choose a `GOOGLE_CLOUD_LOCATION` in the region you promise families.
+- Pin `GEMINI_MODEL` to a versioned model available in that region, and change it only on purpose: a new model shifts transcripts and ratings, and with them people's comparisons with their own normal.
+- Consent wording to add (draft, for your approval): "To understand the answers, Clari sends the recordings to Google's Gemini service, which writes down what was said and checks unclear answers. Google processes them for us only, doesn't keep them, and doesn't use them to train its models."
 | Paid hosting for the server, or keep it on your PC | You decide (money) |
 
 ## 4. Medical-device rules (your call, before any store)

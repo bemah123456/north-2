@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field, field_validator
 
-from . import assistant, listen, notify, report, store, transcribe
+from . import assistant, gemini, listen, notify, report, store, transcribe
 from .baseline import load_model
 from .change import duration_z
 from .exercises import build_checkin, build_session
@@ -131,6 +131,7 @@ def health() -> dict:
     return {
         "ok": True,
         "speech_to_text": transcribe.provider() or "none (typed answers only)",
+        "gemini": gemini.status(),
         "notifications_live": notify.live(),
         "model": {k: model[k] for k in ("trained_on", "synthetic", "n_rows", "held_out_people_auc")},
     }
@@ -323,7 +324,7 @@ async def submit_checkin(pid: str, request: Request) -> dict:
             continue
         data = await f.read()
         audio[ex.id] = (data, f.content_type or "audio/m4a", (f.filename or "a.m4a").rsplit(".", 1)[-1])
-        given[ex.id] = _hear(ex, data, f.content_type)
+        given[ex.id] = _hear(ex, data, f.content_type) | {"audio": data}
 
     hour = now_local.hour + now_local.minute / 60
     duration = form.get("duration_s")
