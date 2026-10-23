@@ -96,6 +96,8 @@ def main():
     ap.add_argument("models", nargs="+", help="HF id or local folder; add @prompt to prompt the months task")
     ap.add_argument("--probes-only", action="store_true")
     ap.add_argument("--out", default="comparison.md")
+    ap.add_argument("--talk", action="store_true",
+                    help="also test with background talk (2 other speakers at 10 dB), like a TV")
     args = ap.parse_args()
     models = args.models
     test_rows = [] if args.probes_only else read_manifest(HERE / "manifests" / "test.csv")
@@ -106,6 +108,19 @@ def main():
     rng = np.random.default_rng(3)
     clean = [load_audio(p["path"]) for p in probes]
     noisy = [add_noise(a, 10, rng) for a in clean]
+    conditions = [("clean", clean), ("noisy 10 dB", noisy)]
+    test_talk = []
+    if args.talk:
+        # Background talkers come from training speakers (never the test speakers).
+        pool = read_manifest(HERE / "manifests" / "train.csv")
+        prng = random.Random(11)
+
+        def with_talk(a):
+            parts = [load_audio(prng.choice(pool)["path"]) for _ in range(2)]
+            n = sum(np.pad(np.resize(p, len(a)), (0, 0)) for p in parts)
+            return (a + n * np.sqrt((np.mean(a ** 2) + 1e-9) / ((np.mean(n ** 2) + 1e-9) * 10))).astype(np.float32)
+        conditions.append(("background talk 10 dB", [with_talk(a) for a in clean]))
+        test_talk = [with_talk(a) for a in test_audio]
 
     table1, table2, examples = [], [], []
     months_idx = [i for i, p in enumerate(probes) if p["kind"] == "months"]
@@ -124,11 +139,17 @@ def main():
             lo, hi = speaker_bootstrap_wer(test_rows, refs, hyps)
             recall, inserted, n_key = key_stats(refs, hyps)
             sec_per_clip = (time.time() - t) / len(test_rows)
-            table1.append(f"| {spec} | {params:.0f}M | {w:.1%} ({lo:.1%} to {hi:.1%}) | {recall:.1%} of {n_key} | "
+            talk_col = ""
+            if test_talk:
+                talk_hyps = transcribe_audio(model, processor, test_talk)
+                tw = wer(refs, talk_hyps)
+                tlo, thi = speaker_bootstrap_wer(test_rows, refs, talk_hyps)
+                talk_col = f" {tw:.1%} ({tlo:.1%} to {thi:.1%}) |"
+            table1.append(f"| {spec} | {params:.0f}M | {w:.1%} ({lo:.1%} to {hi:.1%}) |{talk_col} {recall:.1%} of {n_key} | "
                           f"{inserted} ({inserted / max(n_key, 1) * 100:.1f} per 100) | {sec_per_clip:.2f} s |")
             print(table1[-1], flush=True)
 
-        for cond, audios in (("clean", clean), ("noisy 10 dB", noisy)):
+        for cond, audios in conditions:
             trans = transcribe_audio(model, processor, audios)
             if prompt:  # the app would prompt only the months question
                 prompted = transcribe_audio(model, processor, [audios[i] for i in months_idx], prompt=prompt)
@@ -155,8 +176,10 @@ def main():
         f"# Model comparison ({time.strftime('%Y-%m-%d %H:%M')})", "",
         f"## Older speakers held out from training ({len(test_rows)} Common Voice clips, "
         f"{len({r['client_id'] for r in test_rows})} speakers aged 60+)", "",
-        "| Model | Size | Word error rate (95% interval) | Month/number/day recall | False month/number/day insertions | Time per clip (CPU) |",
-        "|---|---|---|---|---|---|", *table1, "",
+        ("| Model | Size | Word error rate (95% interval) | With background talk 10 dB | Month/number/day recall | "
+         "False month/number/day insertions | Time per clip (CPU) |" if test_talk else
+         "| Model | Size | Word error rate (95% interval) | Month/number/day recall | False month/number/day insertions | Time per clip (CPU) |"),
+        "|---|---|---|---|---|---|" + ("---|" if test_talk else ""), *table1, "",
         f"## 4AT answer probes ({len(probes)} synthetic clips per condition)", "",
         "False positive: a correct answer judged wrong, which would raise a healthy person's 4AT score. "
         "Missed impairment: a wrong answer judged right. Ask again: exactly one month missing, so the app "

@@ -1,6 +1,6 @@
-# HANDOFF: delirium voice research, PC side (copied from the PC thread 2026-10-21)
+# HANDOFF: delirium voice research, PC side (updated 2026-10-20 22:45)
 
-Folder on the PC: the "Delirium Speech Research" folder in Documents (not the Roblox repo).
+Folder on the PC: %USERPROFILE%\Documents\Delirium Speech Research (not the Roblox repo).
 This PC has no GitHub login for bemah123456/north-2, so results go to the project files and the
 cloud thread puts them in the repo under research/.
 
@@ -17,9 +17,22 @@ cloud thread puts them in the repo under research/.
   - Best setup so far: our tuned Whisper small + month-list prompt: 8.3% WER vs 8.6% stock small,
     0% false 4AT failures in quiet, 2% in noise, 0 missed impairments (synthetic 4AT probes).
     With background talk, tuned small 22.9% WER vs 32.9% stock.
-- Results: research/pc/RESULTS.md and RESULTS-finetune-2026-10-20.md; training/out/*.md tables; raw console logs in training/logs/.
+- Results: research-pc/RESULTS.md; training/out/*.md tables.
 
-## Running / next
+## Move to the cloud (2026-10-21): PC going offline
+- Everything except model weights and audio is in /mnt/project-files/research-pc-final.zip:
+  training/*.py, *.ps1, *.js, logs, out/*.md result tables, manifests (train_v2.csv lists the
+  43,067 training clips and test.csv the 360 test clips by Common Voice file name and client_id),
+  prototype/, findings.md, research_log.md, RESULTS.md, this file.
+- Not shared: tuned models (out/whisper-base 290 MB, whisper-small 926 MB, whisper-small-v2 926 MB;
+  project-file limit is 20 MB) and the audio (data/cv17_older, ~3 GB). To rebuild in the cloud:
+  run training/fetch_cv17_older.py (Hugging Face dataset saeedzou/common-voice-17-en-age-gender-accent,
+  CC0, no sign-up; needs Hugging Face reachable), then extend_train_manifest.py, then
+  finetune_whisper.py from openai/whisper-small with the settings in research_log.md.
+- Round 3 was planned (from the best model: --augment --key-frac 0.35, 900 steps, lr 4e-6) but not
+  started, per the user's move to the cloud.
+
+## Running / next (as of the move)
 - Round 2 comparison (stock small, Distil-Whisper, tuned small, tuned small v2; quiet + background
   talk) -> training/out/comparison_round2.md. Then update RESULTS.md and share.
 - Santa Barbara corpus (unscripted speech, 8 speakers aged 60-90): segment list built on the PC

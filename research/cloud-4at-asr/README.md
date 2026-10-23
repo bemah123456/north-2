@@ -321,6 +321,68 @@ other wordings, and a second wrong or unusable answer counts as a mistake.
 So asking again costs one to three points of false alarms, and the
 ranking of the models doesn't change.
 
+## More people, accents and dates
+
+The earlier tests used one made-up person. [scripts/answers_people.py](scripts/answers_people.py)
+writes 150 answers for six people born between 1931 and 1955 (Leeds,
+Glasgow, Cork, Phoenix, Brighton, Auckland), healthy and impaired, for
+the age, birthday, year, place and months-backwards questions, dated
+21 October 2026. [scripts/make_audio_people.py](scripts/make_audio_people.py)
+speaks them in 14 voices: 12 VCTK voices (Scottish, Irish, Northern
+English, Indian, American, South African, Australian, New Zealand; accent
+labels from the VCTK speaker list as remembered, not re-checked) and two
+Kokoro British voices, clean and "older" (slowed with a tremor). That is
+4,200 clips. [scripts/score_people.py](scripts/score_people.py) scores
+Whisper small's transcripts with the app's merged code on main (its clip
+check, `retry_reason` and the answer rules), so an answer ends up right,
+wrong, asked again, or unsure (handed on for a second check).
+
+| Healthy answers | Scored wrong | Asked again | Unsure | Impaired answers passed |
+|---|---|---|---|---|
+| Whisper small, app as merged, clean | 12.1% | 0.5% | 2.0% | 0% |
+| Whisper small, app as merged, older | 12.6% | 0.6% | 2.8% | 0% |
+| Whisper small, with the fixes, clean | 1.3% | 3.3% | 3.5% | 0% |
+| Whisper small, with the fixes, older | 1.0% | 4.0% | 4.4% | 0% |
+| Parakeet, app as merged, clean | 9.8% | 0.9% | 0.9% | 0% |
+| Parakeet, app as merged, older | 9.4% | 0.6% | 0.8% | 0% |
+| Parakeet, with the fixes, clean | 1.1% | 3.7% | 1.7% | 0% |
+| Parakeet, with the fixes, older | 0.7% | 4.1% | 1.8% | 0% |
+
+Almost all of it is the age question: the app scored 46% (clean) and 51%
+(older) of healthy ages wrong with Whisper small, and 39-40% with
+Parakeet. Whisper writes "ninety-five" as "9-5" or "9 to 5", and
+"seventy-one" as "721"; Parakeet writes "nine to five" in words. The
+age rule counts any answer without a number from 40 to 120 as a wrong
+age. Birthdays come next (9.5% wrong with Whisper small, 5-6% with
+Parakeet), mostly a dropped last digit: "February the 20th" for the
+28th, "the 3rd" for the 31st.
+
+The two Kokoro voices had no errors with Whisper small and 3 with
+Parakeet; all the rest came from the VCTK voices, which are an older, rougher text-to-speech model. So these
+rates say more about which slips can happen than how often they happen
+with real people.
+
+[scripts/fixes_people.py](scripts/fixes_people.py) has the proposed rule
+changes, tried here by patching the app's functions in memory (the app
+itself is unchanged):
+
+1. Age: "9-5", "9 to 5" and "nine to five" are read as 95. An age answer whose only
+   numbers are single digits or impossible ("I made a 7", "721", "295") is
+   misheard, so the question is asked again instead of scored wrong.
+2. Birthday: a day or year that is the right one with a digit dropped
+   (20 for 28, 3 for 31, 1930 for 1938) is unsure, not wrong.
+3. Year: "2000 in 26", "20,026" and "20, 26" are read as 2026.
+
+One slip is left alone: Parakeet sometimes hears "twenty twenty six" as
+"202", which still counts as a wrong year (2-4% of healthy years).
+
+None of the 1,680 impaired answers passed, with or without the fixes. The
+cost is more re-asks: about one healthy age answer in six is asked again
+with either model, and a re-ask can hit the same slip, so the second answer should still go
+to a person rather than count as wrong. The fixes were designed on this
+same set; they are general rules, but they should be checked on real
+recordings before relying on the exact numbers.
+
 ## Limits
 
 - The voices are synthetic. They are slowed and shaky, but they are not
@@ -353,6 +415,7 @@ the copies under `app-patch/` and `scripts/robust.py` are the versions this
 study measured.
 
 
+- `results/people/`: the more-people study (clip list, Whisper small and Parakeet transcripts, summaries and errors for the app as merged and with the fixes); the audio itself is in the project files under `research-cloud/audio_people/`.
 - `scripts/`: build the clips (`make_audio.py`, and `make_tv_levels.py` for
   the TV levels), the quiet-room check (`noise_check.py`,
   `analyze_levels.py`), run a model
