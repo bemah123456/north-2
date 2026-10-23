@@ -5,17 +5,11 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { api, Person, server } from '../api';
+import { birthDate, DetailsForm, emptyDetails, placesFrom, TIMES, WhatClariChecks } from '../details';
 import { LogoFull, NodeLine } from '../graphics';
 import { Rise } from '../motion';
 import { colors, font, maxScale, radius, space, type } from '../theme';
-import { BigButton, Body, BrandBar, Card, Choice, Field, Pick, QuietButton, Screen, Section, Title } from '../ui';
-
-const TIMES = [
-  { value: '08:00', label: '8 am' },
-  { value: '09:00', label: '9 am' },
-  { value: '10:00', label: '10 am' },
-  { value: '11:00', label: '11 am' },
-];
+import { BigButton, Body, BrandBar, Card, Choice, Field, QuietButton, Screen, Section, Title } from '../ui';
 
 export type Role = 'senior' | 'family';
 
@@ -25,30 +19,25 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
   const [created, setCreated] = useState<Person | null>(null);
   const [code, setCode] = useState('');
   const [address, setAddress] = useState(server.get());
-  const [form, setForm] = useState({
-    name: '', birth_date: '', place: 'home', city: '', checkin_time: '09:00', family_name: '', family_phone: '',
-  });
-  const set = (k: keyof typeof form) => (v: string) => setForm({ ...form, [k]: v });
+  const [details, setDetails] = useState(emptyDetails());
+  const [you, setYou] = useState({ family_name: '', family_phone: '' });
 
   async function create() {
     setError('');
-    // Rejects dates like 1950-13-45 that only look right.
-    const [y, m, d] = form.birth_date.split('-').map(Number);
-    const born = new Date(y, m - 1, d);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(form.birth_date) || born.getMonth() !== m - 1
-        || born.getDate() !== d || born > new Date()) {
-      setError('Birth date should look like 1944-03-14.');
+    const born = birthDate(details);
+    if (!born.iso) {
+      setError(born.problem ?? 'Check their birthday.');
       return;
     }
     try {
       const p = await api.createPerson({
-        name: form.name.trim(),
-        birth_date: form.birth_date,
+        name: details.name.trim(),
+        birth_date: born.iso,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        checkin_time: form.checkin_time,
-        place_keywords: [form.place, form.city].map((s) => s.trim()).filter(Boolean),
-        family_name: form.family_name.trim() || undefined,
-        family_phone: form.family_phone.trim() || null,
+        checkin_time: details.checkin_time,
+        place_keywords: placesFrom(details),
+        family_name: you.family_name.trim() || undefined,
+        family_phone: you.family_phone.trim() || null,
       });
       setCreated(p);
       setStep('code');
@@ -164,9 +153,11 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
           </Text>
         </View>
         <Body muted>
-          They'll get a reminder at {TIMES.find((t) => t.value === created.checkin_time)?.label ?? created.checkin_time} each
+          That's all they need to type. They'll get a reminder at {TIMES.find((t) => t.value === created.checkin_time)?.label ?? created.checkin_time} each
           day. If they haven't checked in 3 hours later, you'll get a text.
         </Body>
+        <WhatClariChecks person={created} />
+        <Body muted>If anything here is wrong, change it later in the family view under "Their details".</Body>
       </Screen>
     );
   }
@@ -174,24 +165,23 @@ export default function Setup({ onReady }: { onReady: (role: Role, personId: str
     <Screen
       footer={
         <>
-          <BigButton label="Create" onPress={create} disabled={!form.name.trim()} />
+          <BigButton label="Create" onPress={create} disabled={!details.name.trim() || !birthDate(details).iso} />
           <BigButton label="Back" kind="secondary" onPress={() => { setError(''); setStep('choose'); }} />
         </>
       }
     >
       <BrandBar label="Setup" />
       <Title>About them</Title>
-      <Card>
-        <Field label="What you call them (e.g. Mom, Grandpa Joe)" value={form.name} onChangeText={set('name')} />
-        <Field label="Their date of birth (year-month-day)" value={form.birth_date} onChangeText={set('birth_date')} placeholder="1944-03-14" />
-        <Field label="Their town or city" value={form.city} onChangeText={set('city')} />
-        <Field label="Where they'll usually be when checking in" value={form.place} onChangeText={set('place')} />
-        <Pick label="Daily reminder" options={TIMES} value={form.checkin_time} onChange={set('checkin_time')} />
-      </Card>
+      <Body muted>
+        You fill this in, not them. Clari checks their answers against it each day, so their birthday and where they live
+        need to be right. All they'll do is type a code.
+      </Body>
+      <DetailsForm value={details} onChange={setDetails} />
       <Section>About you</Section>
       <Card>
-        <Field label="Your first name" value={form.family_name} onChangeText={set('family_name')} />
-        <Field label="Your mobile number, for missed check-in texts" value={form.family_phone} onChangeText={set('family_phone')} keyboardType="phone-pad" />
+        <Field label="Your first name" value={you.family_name} onChangeText={(t) => setYou({ ...you, family_name: t })} />
+        <Field label="Your mobile number with country code (e.g. +1 555 123 4567), for texts" value={you.family_phone}
+          onChangeText={(t) => setYou({ ...you, family_phone: t })} keyboardType="phone-pad" />
       </Card>
       <Body muted>
         Before starting, make sure they agree to daily check-ins and know their answers are recorded and shared

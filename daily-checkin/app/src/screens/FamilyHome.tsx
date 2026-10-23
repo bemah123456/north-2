@@ -5,6 +5,7 @@ import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Alert, api, DayRow, Person, Recording, Result } from '../api';
 import { NowPlaying, useCheckinPlayer } from '../listen';
+import { birthDate, Details, DetailsForm, detailsFrom, placesFrom, WhatClariChecks } from '../details';
 import { Icon } from '../graphics';
 import { Rise } from '../motion';
 import { colors, font, maxScale, statusColor, statusSoft, type } from '../theme';
@@ -35,6 +36,30 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
   const [error, setError] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [dayOff, setDayOff] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Details | null>(null);
+  const [editError, setEditError] = useState('');
+
+  async function saveDetails() {
+    if (!editing) return;
+    const born = birthDate(editing);
+    if (!editing.name.trim() || !born.iso) {
+      setEditError(born.problem ?? 'Add the name they go by.');
+      return;
+    }
+    try {
+      setPerson(await api.updatePerson(personId, {
+        name: editing.name.trim(),
+        birth_date: born.iso,
+        place_keywords: placesFrom(editing),
+        checkin_time: editing.checkin_time,
+      }));
+      setEditing(null);
+      setEditError('');
+    } catch (e) {
+      setEditError((e as Error).message);
+    }
+  }
+
 
   const load = useCallback(async () => {
     try {
@@ -76,6 +101,25 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
     if (!detail) return;
     setDetail(await api.familyReport(detail.checkin_id, different));
     load();
+  }
+
+  if (editing) {
+    return (
+      <Screen
+        footer={
+          <>
+            <BigButton label="Save" onPress={saveDetails} />
+            <BigButton label="Cancel" kind="secondary" onPress={() => { setEditing(null); setEditError(''); }} />
+          </>
+        }
+      >
+        <BrandBar label="Their details" />
+        <Title>Change their details</Title>
+        <Body muted>Clari checks their answers against these, so fixing a mistake here stops right answers being marked wrong.</Body>
+        <DetailsForm value={editing} onChange={setEditing} />
+        {!!editError && <Body>{editError}</Body>}
+      </Screen>
+    );
   }
 
   const latest = days[0];
@@ -189,6 +233,18 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
       )}
 
       <Section>Settings</Section>
+      {person && (
+        <Card>
+          <Text style={styles.settingTitle}>Their details</Text>
+          <WhatClariChecks person={person} />
+          <Body muted>Code for their phone, if it ever needs connecting again:</Body>
+          <Text selectable style={styles.code} maxFontSizeMultiplier={maxScale.tight}
+            accessibilityLabel={`Code: ${person.id.split('').join(' ')}`}>
+            {person.id.match(/.{1,4}/g)?.join(' ')}
+          </Text>
+          <BigButton label="Change their details" kind="secondary" onPress={() => setEditing(detailsFrom(person))} />
+        </Card>
+      )}
       {person && (
         <Card>
           <Text style={styles.settingTitle}>Evening check-in: {person.evening_checkin ? `on, at ${person.evening_time}` : 'off'}</Text>
@@ -361,6 +417,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   pair: { flexDirection: 'row', gap: 12 },
   date: { fontFamily: font.bodyBold, fontSize: type.body, color: colors.text, marginBottom: 6 },
+  code: { fontFamily: font.display, fontSize: type.big, letterSpacing: 2, color: colors.primary, marginBottom: 8 },
   settingTitle: { fontFamily: font.display, fontSize: type.body, color: colors.text, marginBottom: 6 },
   q: { fontFamily: font.body, fontSize: type.small, color: colors.muted },
   a: { fontFamily: font.bodyBold, fontSize: type.body, color: colors.text },
