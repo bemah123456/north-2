@@ -6,7 +6,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Alert, api, DayRow, Person, Recording, Result } from '../api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { Alert, api, DayRow, Person, Recording, Result, Suggestion } from '../api';
+import { HowItWorks, TOUR_KEY } from '../tour';
+import Messages from './Messages';
 import { Calendar, TONE, TONE_SOFT, TONE_STRONG, toneOf } from '../calendar';
 import { NowPlaying, useCheckinPlayer } from '../listen';
 import { birthDate, Details, DetailsForm, detailsFrom, placesFrom, WhatClariChecks } from '../details';
@@ -80,6 +84,7 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const player = useCheckinPlayer();
   const [tab, setTab] = useState<Tab>('home');
+  const [tourOpen, setTourOpen] = useState(false);
   const [day, setDay] = useState<DayRow | null>(null); // the day whose digest is open
   const [detail, setDetail] = useState<Result | null>(null);
   const [error, setError] = useState('');
@@ -106,6 +111,41 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
     const sub = AppState.addEventListener('change', (s) => s === 'active' && load());
     return () => sub.remove();
   }, [load]);
+
+  // The tour shows once, the first time this phone opens the family view.
+  useEffect(() => {
+    AsyncStorage.getItem(TOUR_KEY(personId)).then((seen) => !seen && setTourOpen(true)).catch(() => {});
+  }, [personId]);
+
+  function finishTour() {
+    setTourOpen(false);
+    AsyncStorage.setItem(TOUR_KEY(personId), '1').catch(() => {});
+  }
+
+  // A settings change Ask Clari suggested and the family tapped.
+  async function applySuggestion(s: Suggestion): Promise<string> {
+    switch (s.setting) {
+      case 'evening_checkin':
+        setPerson(await api.updatePerson(personId, { evening_checkin: s.value === 'on' }));
+        return s.value === 'on' ? 'The evening check-in is on.' : 'The evening check-in is off.';
+      case 'evening_time':
+        setPerson(await api.updatePerson(personId, { evening_checkin: true, evening_time: s.value }));
+        return `The evening check-in is on, at ${s.value}.`;
+      case 'checkin_time':
+        setPerson(await api.updatePerson(personId, { checkin_time: s.value }));
+        return `The daily reminder is now at ${s.value}.`;
+      case 'share_recordings':
+        await setSharing(s.value === 'on');
+        return s.value === 'on' ? 'Recordings are on.' : 'Recordings are off.';
+      case 'day_off_tomorrow': {
+        const d = tomorrow(days[0]?.date);
+        await api.dayOff(personId, d, true);
+        setDayOff(d);
+        load();
+        return `${niceDate(d)} is a day off.`;
+      }
+    }
+  }
 
   async function openDay(row: DayRow) {
     setDay(row);
@@ -165,6 +205,10 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
     if (fresh) setDay(fresh);
   }
 
+  if (tourOpen) {
+    return <HowItWorks name={person?.name ?? 'Your relative'} onDone={finishTour} />;
+  }
+
   if (editing) {
     return (
       <Screen
@@ -214,48 +258,16 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
 
   if (tab === 'messages') {
     return (
-      <Screen key="messages" backdrop="calm" footer={tabBar}>
-        <BrandBar label="Messages" />
-        <Title center>Messages</Title>
-        <Body muted center>What Clari has sent you.</Body>
-        {errorCard}
-        {toFamily.length === 0 && (
-          <View style={styles.empty}>
-            <Icon name="message" size={40} color={colors.muted} />
-            <Body muted center>No messages yet. When Clari texts you, you'll see it here too.</Body>
-          </View>
-        )}
-        {toFamily.map((a, i) => (
-          <Rise key={`${a.date}${a.kind}`} order={i}>
-            <Card>
-              <Text style={[styles.date, styles.center]}>{niceDate(a.date)}</Text>
-              <Body center>
-                {a.message}
-                {a.delivered ? '' : ' (not sent: test mode)'}
-              </Body>
-              {a.kind.startsWith('missed') &&
-                (a.was_real === null ? (
-                  <>
-                    <Body muted center>Was this a real concern?</Body>
-                    <View style={styles.pair}>
-                      <View style={{ flex: 1 }}>
-                        <BigButton label="Yes" kind="secondary" onPress={() => api.alertFeedback(personId, a.date, a.kind, true).then(load)} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <BigButton label="No, all fine" kind="secondary" onPress={() => api.alertFeedback(personId, a.date, a.kind, false).then(load)} />
-                      </View>
-                    </View>
-                  </>
-                ) : (
-                  <Body muted center>You said: {a.was_real ? 'a real concern' : 'all fine'}.</Body>
-                ))}
-              {a.kind === 'recording' && days.find((d) => d.date === a.date)?.checkin_id && (
-                <QuietButton label="Open that day's digest" onPress={() => { const d = days.find((r) => r.date === a.date); if (d) openDay(d); }} />
-              )}
-            </Card>
-          </Rise>
-        ))}
-      </Screen>
+      <Messages
+        personId={personId}
+        person={person}
+        days={days}
+        alerts={alerts}
+        tabBar={tabBar}
+        onFeedback={(a, real) => api.alertFeedback(personId, a.date, a.kind, real).then(load)}
+        onOpenDay={openDay}
+        onApply={applySuggestion}
+      />
     );
   }
 
@@ -322,6 +334,13 @@ export default function FamilyHome({ personId, onSignOut }: { personId: string; 
             }}
           />
           {!!dayOff && <Body center>{niceDate(dayOff)} is a day off.</Body>}
+        </Card>
+        <Section center>Help</Section>
+        <Card>
+          <Text style={styles.settingTitle}>New to Clari?</Text>
+          <Body muted center>A one-minute tour, or ask Clari what anything means.</Body>
+          <BigButton label="How Clari works" kind="secondary" onPress={() => setTourOpen(true)} />
+          <BigButton label="Ask Clari a question" kind="secondary" onPress={() => setTab('messages')} />
         </Card>
         <Body muted center>Screening only, not a diagnosis. If you're worried, call their doctor.</Body>
         <QuietButton label="Change setup" onPress={onSignOut} />

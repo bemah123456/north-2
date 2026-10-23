@@ -130,6 +130,15 @@ export async function audioSource(path: string): Promise<string | { uri: string;
   return { uri, headers: { Authorization: `Bearer ${TOKEN}` } };
 }
 
+// Ask Clari: the family's questions about the app, and its answers.
+export type ChatTurn = { role: 'user' | 'assistant'; text: string };
+export type Suggestion = {
+  setting: 'evening_checkin' | 'evening_time' | 'checkin_time' | 'share_recordings' | 'day_off_tomorrow';
+  value: string;
+  label: string;
+};
+export type AskReply = { reply: string; suggestions: Suggestion[]; source: 'claude' | 'guide' };
+
 // reason "unsure": the speech model itself doubted what it heard.
 export type AnswerCheck = { ask_again: boolean; noisy: boolean; reason?: 'misheard' | 'one_month_dropped' | 'unsure' | null };
 
@@ -175,6 +184,8 @@ export const api = {
   recording: (checkinId: string) => call<Recording>(`/checkins/${checkinId}/recording`),
   familyReport: (checkinId: string, different: boolean) =>
     call<Result>(`/checkins/${checkinId}/family-report`, { method: 'POST', body: JSON.stringify({ different }) }),
+  ask: (id: string, message: string, history: ChatTurn[]) =>
+    call<AskReply>(`/people/${id}/ask`, { method: 'POST', body: JSON.stringify({ message, history: history.slice(-12) }) }),
   setNote: (id: string, date: string, text: string) =>
     call<{ date: string; note: string }>(`/people/${id}/notes/${date}`, { method: 'PUT', body: JSON.stringify({ text }) }),
   dayOff: (id: string, date: string, off: boolean) =>
