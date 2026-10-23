@@ -27,14 +27,30 @@ def shard_list():
 
 
 def download(path, dest):
+    """Downloads with resume: a dropped connection continues from the bytes already
+    saved (the CDN once cut one shard at the same byte on every retry)."""
     url = f"https://huggingface.co/datasets/{REPO}/resolve/main/{path}"
-    for attempt in range(4):
+    dest = Path(dest)
+    dest.unlink(missing_ok=True)
+    for attempt in range(8):
+        have = dest.stat().st_size if dest.exists() else 0
+        req = urllib.request.Request(url, headers={"Range": f"bytes={have}-"} if have else {})
         try:
-            urllib.request.urlretrieve(url, dest)
-            return
-        except Exception as e:  # network hiccup: back off and retry
-            print(f"  retry {attempt + 1} for {path}: {e}", flush=True)
-            time.sleep(2 ** (attempt + 1))
+            with urllib.request.urlopen(req, timeout=120) as r:
+                total = have + int(r.headers.get("Content-Length", 0))
+                if have and r.status != 206:  # server ignored the range: start over
+                    have, total = 0, int(r.headers.get("Content-Length", 0))
+                    dest.unlink(missing_ok=True)
+                with dest.open("ab") as f:
+                    while chunk := r.read(1 << 20):
+                        f.write(chunk)
+            if dest.stat().st_size >= total:
+                return
+            raise IOError(f"got {dest.stat().st_size} of {total} bytes")
+        except Exception as e:  # network hiccup: back off, then resume
+            print(f"  retry {attempt + 1} for {path} (have {dest.stat().st_size if dest.exists() else 0} bytes): {e}",
+                  flush=True)
+            time.sleep(min(60, 2 ** (attempt + 1)))
     raise RuntimeError(f"could not download {path}")
 
 
