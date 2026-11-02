@@ -1,0 +1,16 @@
+{
+  "name": "clari-landing",
+  "private": true,
+  "description": "Builds vendor/clari-ui.js, the one script the Clari landing page loads.",
+  "scripts": {
+    "build": "esbuild src/ui.js --bundle --minify --format=esm --target=es2020 --legal-comments=none --outfile=vendor/clari-ui.js && node src/copy-css.mjs"
+  },
+  "devDependencies": {
+    "@arclux/arc-ui": "4.9.1",
+    "@usespaceui/squircle": "0.1.2",
+    "esbuild": "0.25.10",
+    "lit": "3.3.1",
+    "thinking-orbs": "0.3.2",
+    "wired-elements": "3.0.0-rc.6"
+  }
+}
