@@ -1,6 +1,6 @@
 # Handoff
 
-Last updated 2026-10-23 (all hackathon PRs merged). A short, current summary of North 2. Every piece of finished work updates this file in the same pull request.
+Last updated 2026-11-02 (Clari landing page added). A short, current summary of North 2. Every piece of finished work updates this file in the same pull request.
 
 ## Goal
 
@@ -21,6 +21,8 @@ A voice check-in that helps families catch delirium in older relatives early. Th
 
 - **Gemini, off by default** (claude/gemini-integration): three flags, each with a fallback to today's behaviour. `GEMINI_TRANSCRIBE=1` takes the words from Gemini and keeps Whisper's word timings for the voice measures; `JUDGE_ENGINE=gemini` lets Gemini listen to answers the rules can't settle; `GEMINI_SPEECH_NOTE=1` adds a 0-3 "unusual speech" rating worth at most 1 point of the change score, never more than the other evidence, so it can't alarm alone. Vertex AI (production, zero data retention + BAA) or a Developer API key (synthetic audio only). Model pinned to `gemini-3.6-flash` (2.5-flash is closed to new keys). Whether Gemini's words become the default waits on the older-speaker benchmark. Env vars: `daily-checkin/README.md`; privacy: `daily-checkin/LAUNCH.md`.
 
+- **Landing page** (claude/project-thread-fcgkpv, 2026-11-02): a one-page Clari site in `landing/` (plain HTML, no build step), using the app's look, real screenshots, the demo video and cited stats, with the limits stated up front. Preview: https://claude.ai/artifact/VpezNthrvVcyugqNrbPJqw. Not deployed; hosting and a domain wait on the user.
+
 ## In progress
 
 - Gemini against our Whisper on the same 360 older-speaker clips (`research/pc/training/gemini_bench.py`, both the plain and the server's prompt, `gemini-3.6-flash`): waiting on billing for the Gemini key, since the free tier allows 20 requests a day and each prompt needs about 1,080. Gemini's words stay off until it beats round 5 turbo there.
@@ -28,6 +30,7 @@ A voice check-in that helps families catch delirium in older relatives early. Th
 
 ## Waiting on the user
 
+- Where to host the landing page and whether to buy a domain, plus a contact email if the page should collect pilot interest (today its call to action links to GitHub).
 - In the PC thread, type "yes, download and share the Santa Barbara list" so the unscripted older-speaker data can be used.
 - Team names for the hackathon, and a yes to make the code public.
 - Billing on the Gemini API key (roughly $1 to $2 per benchmark prompt), so the Gemini benchmark can run. For real people's voices, Vertex AI with zero data retention and a BAA instead (see `daily-checkin/LAUNCH.md`).

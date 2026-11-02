@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Clari</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Clari is a two-minute daily voice check-in that helps families notice early signs of delirium in an older relative at home.">
+<link rel="icon" href="img/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Nunito:wght@700;800;900&display=swap">
+<style>
+/* Layout concept: one calm column that reads like a week on the fridge calendar.
+   The seven-day strip from the family view is the page's recurring device. */
+:root {
+  --bg: #F4F8FB;          /* app background */
+  --surface: #FFFFFF;
+  --ink: #0F2236;         /* text, 7:1+ */
+  --muted: #3A4B5E;
+  --navy: #1A457D;        /* wordmark navy: buttons and links */
+  --on-navy: #FFFFFF;
+  --teal: #3694A1;        /* logo teal: graphics only, never text */
+  --glow: #CDE7EA;
+  --wash: #E4F1F3;
+  --line: #D3DEE8;
+  --bezel: #0F2236;
+  --green: #185736; --green-soft: #E3F2E8;
+  --amber: #734100; --amber-soft: #FCEFD9;
+  --red: #8F1D17;   --red-soft: #FBE4E1;
+  --display: "Nunito", "Arial Rounded MT Bold", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --step-0: 1.1875rem;  /* 19px body */
+  --step-1: 1.375rem;
+  --step-2: 1.75rem;
+  --step-3: clamp(2rem, 1.4rem + 2.4vw, 2.75rem);
+  --step-4: clamp(2.5rem, 1.6rem + 4vw, 4.25rem);
+  --r-m: 16px; --r-l: 24px; --r-xl: 32px;
+  --max: 1120px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B1724; --surface: #122236; --ink: #EDF3F8; --muted: #B7C6D4;
+    --navy: #A9CBF2; --on-navy: #0B1724; --teal: #5DB3BF; --glow: #1D4650; --wash: #13303A;
+    --line: #2A3D52; --bezel: #24384F;
+    --green: #9ED9B3; --green-soft: #12301F;
+    --amber: #F3C27A; --amber-soft: #36270F;
+    --red: #F4A49C;   --red-soft: #3A1714;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0B1724; --surface: #122236; --ink: #EDF3F8; --muted: #B7C6D4;
+  --navy: #A9CBF2; --on-navy: #0B1724; --teal: #5DB3BF; --glow: #1D4650; --wash: #13303A;
+  --line: #2A3D52; --bezel: #24384F;
+  --green: #9ED9B3; --green-soft: #12301F;
+  --amber: #F3C27A; --amber-soft: #36270F;
+  --red: #F4A49C;   --red-soft: #3A1714;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--body); font-size: var(--step-0); line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+img, video { max-width: 100%; height: auto; display: block; }
+a { color: var(--navy); text-underline-offset: 3px; text-decoration-thickness: 2px; }
+a:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; border-radius: 8px; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.12; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h2 { font-size: var(--step-3); font-weight: 800; }
+h3 { font-size: var(--step-1); font-weight: 800; }
+p { margin: 0; }
+.wrap {
+  max-width: var(--max); margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.eyebrow { font-family: var(--display); font-weight: 800; font-size: 0.95rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: var(--step-1); color: var(--muted); max-width: 36ch; }
+section { padding-block: clamp(56px, 8vw, 104px); }
+.section-head { display: grid; gap: 14px; max-width: 46rem; margin-bottom: clamp(28px, 4vw, 48px); }
+
+/* ---------- nav ---------- */
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid transparent; }
+.nav .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--navy); font-family: var(--display); font-weight: 900; font-size: 1.6rem; }
+.brand img { width: 40px; height: auto; }
+.nav-links { display: flex; align-items: center; gap: 28px; font-family: var(--display); font-weight: 700; }
+.nav-links a:not(.btn) { text-decoration: none; color: var(--ink); }
+.nav-links a:not(.btn):hover { color: var(--navy); text-decoration: underline; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 56px; padding: 0 28px; border-radius: 999px;
+  font-family: var(--display); font-weight: 800; font-size: 1.15rem; text-decoration: none; border: 2px solid var(--navy); transition: transform .12s ease, background-color .2s ease; }
+.btn-primary { background: var(--navy); color: var(--on-navy); }
+.btn-ghost { background: transparent; color: var(--navy); }
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(1px); }
+.btn svg { width: 22px; height: 22px; flex: none; }
+.nav .btn { min-height: 48px; padding: 0 22px; font-size: 1.05rem; }
+
+/* ---------- hero ---------- */
+.hero { padding-block: clamp(32px, 6vw, 72px) clamp(56px, 8vw, 96px); position: relative; overflow: hidden; }
+.hero::before { content: ""; position: absolute; width: 760px; height: 760px; right: -260px; top: -240px; border-radius: 50%; background: var(--wash); z-index: 0; }
+.hero .wrap { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); gap: clamp(32px, 5vw, 72px); align-items: center; }
+.hero h1 { font-size: var(--step-4); font-weight: 900; color: var(--ink); max-width: 12ch; }
+.hero h1 em { font-style: normal; color: var(--navy); }
+.hero-copy { display: grid; gap: 24px; min-width: 0; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 14px; }
+.hero-note { font-size: 1rem; color: var(--muted); display: flex; gap: 10px; align-items: flex-start; }
+.hero-note svg { width: 22px; height: 22px; flex: none; margin-top: 2px; color: var(--teal); }
+
+.stage { position: relative; display: grid; justify-items: end; min-width: 0; padding-bottom: 24px; }
+.phone { position: relative; width: min(290px, 74vw); border-radius: 40px; padding: 10px; background: var(--bezel); box-shadow: 0 30px 60px -30px rgba(15, 34, 54, .45); }
+.phone img { border-radius: 31px; width: 100%; height: auto; aspect-ratio: 520 / 1125; object-fit: cover; background: var(--surface); }
+.rings { position: absolute; left: 50%; top: 50%; width: 120%; aspect-ratio: 1; translate: -50% -52%; z-index: -1; }
+.rings span { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--glow); animation: ring 4.8s ease-out infinite; opacity: 0; }
+.rings span:nth-child(2) { animation-delay: 1.6s; }
+.rings span:nth-child(3) { animation-delay: 3.2s; }
+@keyframes ring { 0% { transform: scale(.55); opacity: 0; } 20% { opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+
+.result-card { position: absolute; left: 0; bottom: 0; width: min(320px, 82vw); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-l); padding: 18px 20px; box-shadow: 0 20px 40px -24px rgba(15, 34, 54, .35); display: grid; gap: 12px; }
+.result-card .who { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-family: var(--display); font-weight: 800; }
+.result-card .who small { font-family: var(--body); font-weight: 400; color: var(--muted); font-size: .95rem; }
+.verdict { display: flex; gap: 12px; align-items: center; font-family: var(--display); font-weight: 900; font-size: 1.3rem; color: var(--red); line-height: 1.2; }
+.why { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 1rem; color: var(--ink); }
+.why li::before { content: "•"; color: var(--red); margin-right: 8px; }
+
+/* status dot: always symbol + word + colour */
+.dot { --c: var(--green); width: 34px; height: 34px; border-radius: 50%; background: var(--c); color: var(--surface); display: grid; place-items: center; flex: none; }
+.dot svg { width: 18px; height: 18px; }
+.dot.amber { --c: var(--amber); }
+.dot.red { --c: var(--red); }
+.dot.grey { --c: var(--line); color: var(--muted); }
+.week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; text-align: center; }
+.week div { display: grid; justify-items: center; gap: 4px; font-family: var(--display); font-weight: 800; font-size: .9rem; color: var(--ink); }
+.week .dot { width: 30px; height: 30px; }
+.week .dot svg { width: 16px; height: 16px; }
+.week .dot { animation: pop .45s cubic-bezier(.3, 1.4, .5, 1) both; animation-delay: calc(var(--i) * 120ms + 400ms); }
+@keyframes pop { from { transform: scale(.4); opacity: .2; } to { transform: scale(1); opacity: 1; } }
+
+/* ---------- problem / week story ---------- */
+.problem { background: var(--surface); border-block: 1px solid var(--line); }
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(16px, 3vw, 40px); margin-bottom: clamp(40px, 6vw, 72px); }
+.fact { display: grid; gap: 6px; align-content: start; border-top: 4px solid var(--teal); padding-top: 18px; min-width: 0; }
+.fact b { font-family: var(--display); font-weight: 900; font-size: clamp(2.2rem, 1.6rem + 2.4vw, 3.2rem); line-height: 1; color: var(--navy); font-variant-numeric: tabular-nums; }
+.fact span { color: var(--muted); }
+.fact sup a { text-decoration: none; font-size: .8rem; }
+
+.story { display: grid; gap: 18px; }
+.story-row { display: grid; grid-template-columns: 9.5rem repeat(5, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
+.story-row > .label { font-family: var(--display); font-weight: 800; align-self: center; }
+.story-head { font-family: var(--display); font-weight: 800; color: var(--muted); text-align: left; padding-left: 4px; }
+.day { border-radius: var(--r-m); padding: 14px 14px 16px; background: var(--bg); border: 1px solid var(--line); display: grid; gap: 8px; align-content: start; font-size: 1rem; line-height: 1.4; min-width: 0; }
+.day .dot { width: 28px; height: 28px; }
+.day .dot svg { width: 15px; height: 15px; }
+.day.good { background: var(--green-soft); border-color: transparent; }
+.day.warn { background: var(--amber-soft); border-color: transparent; }
+.day.bad { background: var(--red-soft); border-color: transparent; }
+.day.caught { outline: 3px solid var(--navy); outline-offset: -3px; }
+.story-foot { color: var(--muted); max-width: 52rem; }
+
+/* ---------- how it works ---------- */
+.steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(16px, 2.4vw, 28px); counter-reset: step; }
+.step { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.step .shot { background: var(--wash); border-radius: var(--r-xl); padding: 22px 22px 0; overflow: hidden; height: 360px; }
+.step .shot img { border-radius: 22px 22px 0 0; width: 100%; box-shadow: 0 10px 30px -18px rgba(15, 34, 54, .4); }
+.step .who { font-family: var(--display); font-weight: 800; font-size: .95rem; color: var(--muted); display: flex; gap: 10px; align-items: center; }
+.step .who .n { width: 30px; height: 30px; border-radius: 50%; background: var(--navy); color: var(--on-navy); display: grid; place-items: center; font-size: 1rem; }
+.step p { color: var(--muted); }
+
+/* ---------- results ---------- */
+.results { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(14px, 2vw, 24px); }
+.result { border-radius: var(--r-l); padding: 26px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.result.good { background: var(--green-soft); }
+.result.warn { background: var(--amber-soft); }
+.result.bad { background: var(--red-soft); }
+.result .top { display: flex; gap: 14px; align-items: center; }
+.result h3 { font-size: 1.45rem; }
+.result.good h3 { color: var(--green); }
+.result.warn h3 { color: var(--amber); }
+.result.bad h3 { color: var(--red); }
+.result .pts { font-family: var(--display); font-weight: 800; font-size: .95rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink); }
+.result p { color: var(--ink); }
+.fine { font-size: 1rem; color: var(--muted); margin-top: 22px; max-width: 54rem; }
+
+/* ---------- care / privacy split ---------- */
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(32px, 5vw, 72px); align-items: center; }
+.ticks { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; }
+.ticks li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 14px; align-items: start; }
+.ticks li .dot { --c: var(--teal); margin-top: 2px; }
+.ticks b { font-family: var(--display); font-weight: 800; display: block; font-size: 1.2rem; line-height: 1.3; }
+.ticks span { color: var(--muted); }
+.room { display: grid; justify-items: center; position: relative; }
+.room .phone { width: min(280px, 70vw); }
+.room-quote { position: absolute; right: 0; top: 14%; max-width: 15rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-l); padding: 16px 18px; font-family: var(--display); font-weight: 800; line-height: 1.3; box-shadow: 0 20px 40px -24px rgba(15, 34, 54, .35); }
+.room-quote small { display: block; font-family: var(--body); font-weight: 400; color: var(--muted); margin-top: 6px; font-size: .95rem; }
+
+.privacy { background: var(--navy); color: var(--on-navy); }
+.privacy .eyebrow, .privacy .lede { color: inherit; opacity: .85; }
+.privacy-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(16px, 2.4vw, 28px); }
+.privacy-grid div { display: grid; gap: 10px; align-content: start; border-top: 2px solid color-mix(in srgb, var(--on-navy) 35%, transparent); padding-top: 18px; min-width: 0; }
+.privacy-grid h3 { font-size: 1.25rem; }
+.privacy-grid p { opacity: .9; }
+.privacy svg { width: 30px; height: 30px; }
+
+/* ---------- demo ---------- */
+.demo-frame { border-radius: var(--r-xl); overflow: hidden; background: var(--ink); aspect-ratio: 16 / 9; max-width: 100%; box-shadow: 0 30px 60px -36px rgba(15, 34, 54, .5); }
+.demo-frame video { width: 100%; height: 100%; object-fit: contain; }
+
+/* ---------- status ---------- */
+.status { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(16px, 3vw, 32px); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-l); padding: clamp(22px, 3vw, 32px); display: grid; gap: 16px; align-content: start; min-width: 0; }
+.panel ul { margin: 0; padding-left: 1.2em; display: grid; gap: 10px; }
+.panel li::marker { color: var(--teal); }
+
+.cta { text-align: left; }
+.cta .box { background: var(--wash); border-radius: var(--r-xl); padding: clamp(28px, 5vw, 56px); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: center; }
+.cta .box > div { display: grid; gap: 12px; min-width: 0; }
+
+footer { padding-block: 40px 56px; color: var(--muted); font-size: 1rem; border-top: 1px solid var(--line); }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 32px; justify-content: space-between; }
+.sources { font-size: .9rem; display: grid; gap: 4px; margin-top: 16px; flex-basis: 100%; }
+.sources ol { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; }
+
+.faq { display: grid; gap: 12px; max-width: 52rem; }
+.faq details { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); padding: 0 22px; }
+.faq summary { cursor: pointer; font-family: var(--display); font-weight: 800; font-size: 1.2rem; padding: 18px 0; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; color: var(--navy); font-size: 1.6rem; line-height: 1; }
+.faq details[open] summary::after { content: "–"; }
+.faq details p { padding-bottom: 20px; color: var(--muted); }
+
+/* ---------- responsive ---------- */
+@media (max-width: 960px) {
+  .nav-links a:not(.btn) { display: none; }
+  .hero .wrap, .split { grid-template-columns: minmax(0, 1fr); }
+  .stage { margin-top: 12px; justify-items: center; }
+  .result-card { left: max(0px, calc(50% - 360px)); }
+  .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .privacy-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .story-row { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .story-row > .label { grid-column: 1 / -1; }
+  .story-row > .spacer { display: none; }
+  .room { order: -1; }
+}
+@media (max-width: 720px) {
+  .facts, .results, .status { grid-template-columns: minmax(0, 1fr); }
+  .story-row { grid-template-columns: minmax(0, 1fr); }
+  .story-head-row { display: none; }
+  .day { grid-template-columns: 28px 4.5rem minmax(0, 1fr); align-items: center; }
+  .day .dname { display: block; font-family: var(--display); font-weight: 800; }
+  .cta .box { grid-template-columns: minmax(0, 1fr); }
+  .stage { justify-items: center; padding-bottom: 0; }
+  .result-card { position: relative; left: auto; bottom: auto; margin-top: -60px; }
+  .room-quote { position: relative; right: auto; top: auto; margin-top: -40px; }
+}
+@media (min-width: 721px) { .day .dname { display: none; } }
+@media (max-width: 560px) {
+  .steps, .privacy-grid { grid-template-columns: minmax(0, 1fr); }
+  .step .shot { height: 320px; }
+  .nav .btn { padding: 0 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .rings span, .week .dot { animation: none; opacity: 1; }
+  .rings span:not(:first-child) { display: none; }
+  .rings span:first-child { transform: scale(.85); opacity: 1; }
+  .btn { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-q" viewBox="0 0 24 24"><path d="M9 9.2a3 3 0 1 1 4.2 2.8c-.8.4-1.2 1-1.2 1.9v.6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/><circle cx="12" cy="18.3" r="1.6" fill="currentColor"/></symbol>
+  <symbol id="i-bang" viewBox="0 0 24 24"><path d="M12 5v9" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/><circle cx="12" cy="18.6" r="1.8" fill="currentColor"/></symbol>
+  <symbol id="i-dash" viewBox="0 0 24 24"><path d="M7 12h10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-cam-off" viewBox="0 0 24 24"><path d="M3 3l18 18M10 6h5a2 2 0 0 1 2 2v3l4-2.5v7M17 17H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-server" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="4" y="13" width="16" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="7.5" r="1.2" fill="currentColor"/><circle cx="8" cy="16.5" r="1.2" fill="currentColor"/></symbol>
+  <symbol id="i-family" viewBox="0 0 24 24"><circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17" cy="9.5" r="2.4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M2.5 19.5c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5M13.5 15.2c1-.8 2.1-1.2 3.5-1.2 2.2 0 3.9 1.4 4.5 4.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.6" r="1.4" fill="currentColor"/></symbol>
+</svg>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Clari, back to top"><img src="img/logo-mark.png" alt="" width="40" height="34">Clari</a>
+    <nav class="nav-links" aria-label="Page sections">
+      <a href="#how">How it works</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#today">Where it is today</a>
+      <a href="#faq">Questions</a>
+      <a class="btn btn-primary" href="#demo"><svg aria-hidden="true"><use href="#i-play"/></svg>Watch the demo</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- ======= HERO ======= -->
+<section class="hero" aria-labelledby="hero-title">
+  <div class="wrap">
+    <div class="hero-copy">
+      <p class="eyebrow">A daily voice check-in for families</p>
+      <h1 id="hero-title">Notice the change <em>the day it starts.</em></h1>
+      <p class="lede">Every day, Clari asks your parent a few short questions out loud and they answer by talking. If their answers or their voice drift from their usual, you hear about it the same day.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#how">See how it works</a>
+        <a class="btn btn-ghost" href="#demo"><svg aria-hidden="true"><use href="#i-play"/></svg>Watch the demo</a>
+      </div>
+      <p class="hero-note"><svg aria-hidden="true"><use href="#i-info"/></svg><span>Clari is a screening aid built by students, not a diagnosis. It hasn't been tested with people who have delirium yet. <a href="#today">Where it is today</a></span></p>
+    </div>
+
+    <div class="stage" aria-label="Clari on the phone: the older person answers by voice, the family sees the result">
+      <div class="phone">
+        <div class="rings" aria-hidden="true"><span></span><span></span><span></span></div>
+        <img src="img/listening.webp" width="520" height="1125" alt="Clari on the older person's phone, question 1 of 7: Hello! Tell me how you slept and what you have planned today. A teal microphone shows it is listening.">
+      </div>
+      <div class="result-card" role="group" aria-label="Example family result">
+        <p class="who">Grandma Rose <small>Example · Wednesday</small></p>
+        <div class="week" aria-label="Last seven days: five usual days, then Tuesday keep an eye on it, Wednesday call their doctor">
+          <div style="--i:0"><span class="dot"><svg><use href="#i-check"/></svg></span>Thu</div>
+          <div style="--i:1"><span class="dot"><svg><use href="#i-check"/></svg></span>Fri</div>
+          <div style="--i:2"><span class="dot"><svg><use href="#i-check"/></svg></span>Sat</div>
+          <div style="--i:3"><span class="dot"><svg><use href="#i-check"/></svg></span>Sun</div>
+          <div style="--i:4"><span class="dot"><svg><use href="#i-check"/></svg></span>Mon</div>
+          <div style="--i:5"><span class="dot amber"><svg><use href="#i-q"/></svg></span>Tue</div>
+          <div style="--i:6"><span class="dot red"><svg><use href="#i-bang"/></svg></span>Wed</div>
+        </div>
+        <p class="verdict"><span class="dot red" aria-hidden="true"><svg><use href="#i-bang"/></svg></span>Call their doctor today</p>
+        <ul class="why">
+          <li>seemed drowsy or slow to respond</li>
+          <li>got the year wrong</li>
+          <li>got 3 of 12 months backwards (needs 7)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======= PROBLEM ======= -->
+<section class="problem" aria-labelledby="problem-title">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">Why it matters</p>
+      <h2 id="problem-title">Delirium looks like a bad day.</h2>
+      <p class="lede">It's a sudden change in thinking, often set off by something ordinary: an infection, dehydration, a new medicine or surgery. Caught early, the cause can often be treated. The most common kind in older adults is the quiet kind, sleepy and withdrawn, and it's easy to miss over a Sunday phone call.</p>
+    </div>
+
+    <div class="facts">
+      <p class="fact"><b>Up to 1 in 2</b><span>older adults in hospital have delirium at some point during their stay.<sup><a href="#src-1" aria-label="Source 1">1</a></sup></span></p>
+      <p class="fact"><b>3 in 4</b><span>cases in older emergency patients were missed by the doctors treating them.<sup><a href="#src-2" aria-label="Source 2">2</a></sup></span></p>
+      <p class="fact"><b>30–40%</b><span>of cases can be prevented, which is why noticing early matters.<sup><a href="#src-1" aria-label="Source 1">1</a></sup></span></p>
+    </div>
+
+    <div class="story" role="table" aria-label="One week, two endings">
+      <div class="story-row story-head-row" role="row">
+        <span class="spacer" role="columnheader"></span>
+        <span class="story-head" role="columnheader">Monday</span>
+        <span class="story-head" role="columnheader">Tuesday</span>
+        <span class="story-head" role="columnheader">Wednesday</span>
+        <span class="story-head" role="columnheader">Thursday</span>
+        <span class="story-head" role="columnheader">Friday</span>
+      </div>
+      <div class="story-row" role="row">
+        <span class="label" role="rowheader">With a daily check-in</span>
+        <div class="day good" role="cell"><span class="dot" aria-hidden="true"><svg><use href="#i-check"/></svg></span><span class="dname">Mon</span><span>She's herself.</span></div>
+        <div class="day warn" role="cell"><span class="dot amber" aria-hidden="true"><svg><use href="#i-q"/></svg></span><span class="dname">Tue</span><span>An infection starts. Her answers are a little slower.</span></div>
+        <div class="day bad caught" role="cell"><span class="dot red" aria-hidden="true"><svg><use href="#i-bang"/></svg></span><span class="dname">Wed</span><span>Confused and sleepy. Her family is told that morning and calls her doctor.</span></div>
+        <div class="day good" role="cell"><span class="dot" aria-hidden="true"><svg><use href="#i-check"/></svg></span><span class="dname">Thu</span><span>The infection is being treated.</span></div>
+        <div class="day good" role="cell"><span class="dot" aria-hidden="true"><svg><use href="#i-check"/></svg></span><span class="dname">Fri</span><span>She's on her way back to herself.</span></div>
+      </div>
+      <div class="story-row" role="row">
+        <span class="label" role="rowheader">Without one</span>
+        <div class="day good" role="cell"><span class="dot" aria-hidden="true"><svg><use href="#i-check"/></svg></span><span class="dname">Mon</span><span>She's herself.</span></div>
+        <div class="day" role="cell"><span class="dot grey" aria-hidden="true"><svg><use href="#i-dash"/></svg></span><span class="dname">Tue</span><span>An infection starts. Nobody calls.</span></div>
+        <div class="day" role="cell"><span class="dot grey" aria-hidden="true"><svg><use href="#i-dash"/></svg></span><span class="dname">Wed</span><span>Confused and sleepy. It looks like tiredness.</span></div>
+        <div class="day" role="cell"><span class="dot grey" aria-hidden="true"><svg><use href="#i-dash"/></svg></span><span class="dname">Thu</span><span>Still unnoticed.</span></div>
+        <div class="day bad" role="cell"><span class="dot red" aria-hidden="true"><svg><use href="#i-bang"/></svg></span><span class="dname">Fri</span><span>She falls.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======= HOW ======= -->
+<section id="how" aria-labelledby="how-title">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">How it works</p>
+      <h2 id="how-title">Two minutes a day, and one plain answer.</h2>
+      <p class="lede">The questions are adapted from the 4AT, a short bedside test clinicians already use to screen for delirium. Clari asks them out loud and compares each answer with that person's own normal days.</p>
+    </div>
+    <ol class="steps" role="list">
+      <li class="step">
+        <div class="shot"><img src="img/setup-code.webp" width="520" height="1125" alt="Setup screen: Dad is set up. On Dad's phone, open Clari, tap My family gave me a code, and type the code shown."></div>
+        <p class="who"><span class="n">1</span>You, once</p>
+        <h3>Set it up in about a minute</h3>
+        <p>Add a few details, like their birthday and town, so Clari knows the right answers. Their phone joins with a short code.</p>
+      </li>
+      <li class="step">
+        <div class="shot"><img src="img/listening.webp" width="520" height="1125" alt="Clari listening to an answer, with I'm finished and Hear it again buttons."></div>
+        <p class="who"><span class="n">2</span>Them, every day</p>
+        <h3>They answer by talking</h3>
+        <p>Clari reads each question aloud: their age, the year, the months backwards. No typing. The wording changes daily so nobody learns the answers.</p>
+      </li>
+      <li class="step">
+        <div class="shot"><img src="img/what-they-said.webp" width="520" height="1125" alt="Day detail: what they said for each question, marked right or wrong, and a comparison with their usual days."></div>
+        <p class="who"><span class="n">3</span>Clari</p>
+        <h3>It compares them with their usual</h3>
+        <p>Answers are scored the 4AT way. Their pace, pauses and how quickly they reply are compared with their own last few normal days, never with anyone else.</p>
+      </li>
+      <li class="step">
+        <div class="shot"><img src="img/family-today.webp" width="520" height="1125" alt="Family view for Grandma Rose: Call their doctor today, with the reasons and the last seven days."></div>
+        <p class="who"><span class="n">4</span>You, the same day</p>
+        <h3>You get one clear result</h3>
+        <p>With the reasons in plain words and their recorded answers to listen to. If they skip a day, you get a text, because withdrawing can be a sign too.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ======= RESULTS ======= -->
+<section aria-labelledby="results-title" style="padding-top:0">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">What you'll see</p>
+      <h2 id="results-title">Three results, each with its reasons.</h2>
+    </div>
+    <div class="results">
+      <div class="result good">
+        <div class="top"><span class="dot" aria-hidden="true"><svg><use href="#i-check"/></svg></span><h3>Their usual self</h3></div>
+        <p class="pts">0 points</p>
+        <p>Answers and voice look like their normal days. It can't rule out illness, so trust your own sense too.</p>
+      </div>
+      <div class="result warn">
+        <div class="top"><span class="dot amber" aria-hidden="true"><svg><use href="#i-q"/></svg></span><h3>Keep an eye on it</h3></div>
+        <p class="pts">1 to 3 points, or a missed day</p>
+        <p>Something is a little off, or answers were hard to hear. Give them a call and see how they are.</p>
+      </div>
+      <div class="result bad">
+        <div class="top"><span class="dot red" aria-hidden="true"><svg><use href="#i-bang"/></svg></span><h3>Call their doctor</h3></div>
+        <p class="pts">4 points or more</p>
+        <p>The kind of change the 4AT treats as possible delirium. Call their doctor today, and in an emergency call 911.</p>
+      </div>
+    </div>
+    <p class="fine">Points follow the 4AT's own scale. In clinical studies, the 4AT given by clinicians caught 88% of delirium cases across 17 studies.<sup><a href="#src-3" aria-label="Source 3">3</a></sup> Clari's spoken, at-home version hasn't been tested that way yet.</p>
+  </div>
+</section>
+
+<!-- ======= MADE FOR THEM ======= -->
+<section aria-labelledby="care-title" style="background:var(--surface);border-block:1px solid var(--line)">
+  <div class="wrap split">
+    <div style="display:grid;gap:28px;min-width:0">
+      <div class="section-head" style="margin:0">
+        <p class="eyebrow">Made for older ears and hands</p>
+        <h2 id="care-title">Easy enough to do every single day.</h2>
+        <p class="lede">If you're the one checking in: you start it when you're ready, it takes about two minutes, and you can ask to hear any question again.</p>
+      </div>
+      <ul class="ticks">
+        <li><span class="dot" aria-hidden="true"><svg><use href="#i-mic"/></svg></span><div><b>Questions read aloud, answers spoken</b><span>One question per screen, a big "Hear it again" button, and it moves on by itself after a few seconds of quiet.</span></div></li>
+        <li><span class="dot" aria-hidden="true"><svg><use href="#i-check"/></svg></span><div><b>Large, high-contrast type</b><span>Body text starts at 22 points and every colour meets a 7:1 contrast ratio. Results always use a symbol and a word, never colour alone.</span></div></li>
+        <li><span class="dot" aria-hidden="true"><svg><use href="#i-q"/></svg></span><div><b>It listens to the room first</b><span>A TV in the background was the biggest cause of false alarms in our tests, so Clari asks for a quieter spot before it starts.</span></div></li>
+        <li><span class="dot" aria-hidden="true"><svg><use href="#i-family"/></svg></span><div><b>Tuned for older voices</b><span>We fine-tuned an open speech model on tens of thousands of recordings of people over sixty, so "eighty-two" isn't heard as "eighty too".</span></div></li>
+      </ul>
+    </div>
+    <div class="room">
+      <div class="phone"><img src="img/senior-home.webp" width="520" height="1125" alt="The older person's home screen: Good evening, Dad. Time for today's check-in. One large Start my check-in button, about 2 minutes."></div>
+      <p class="room-quote">"Start my check-in"<small>One button. About two minutes.</small></p>
+    </div>
+  </div>
+</section>
+
+<!-- ======= PRIVACY ======= -->
+<section id="privacy" class="privacy" aria-labelledby="privacy-title">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">Privacy</p>
+      <h2 id="privacy-title">No cameras. Nobody watching.</h2>
+      <p class="lede">Many older adults don't want to be watched in their own home, and they shouldn't have to be. Clari only listens for two minutes, when they choose to start.</p>
+    </div>
+    <div class="privacy-grid">
+      <div><svg aria-hidden="true"><use href="#i-cam-off"/></svg><h3>Voice only</h3><p>No camera and no always-on microphone. It records only the answers during a check-in.</p></div>
+      <div><svg aria-hidden="true"><use href="#i-server"/></svg><h3>Our own speech model</h3><p>Answers are transcribed by our own model on our own server, not sent to an outside company.</p></div>
+      <div><svg aria-hidden="true"><use href="#i-family"/></svg><h3>Family only</h3><p>Only the family they're linked with can hear the recordings.</p></div>
+      <div><svg aria-hidden="true"><use href="#i-trash"/></svg><h3>Theirs to control</h3><p>Recording sharing can be switched off, and recordings can be deleted.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======= DEMO ======= -->
+<section id="demo" aria-labelledby="demo-title">
+  <div class="wrap" style="display:grid;gap:28px">
+    <div class="section-head" style="margin:0">
+      <p class="eyebrow">Demo</p>
+      <h2 id="demo-title">See a full check-in.</h2>
+      <p class="lede">A walkthrough of the working app: setting up, a spoken check-in, and what the family sees afterwards.</p>
+    </div>
+    <div class="demo-frame">
+      <video controls preload="none" playsinline poster="media/clari-demo-poster.jpg" aria-label="Clari demo video">
+        <source src="media/clari-demo.mp4" type="video/mp4">
+      </video>
+    </div>
+  </div>
+</section>
+
+<!-- ======= WHERE IT IS TODAY ======= -->
+<section id="today" aria-labelledby="today-title" style="padding-top:0">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">Where Clari is today</p>
+      <h2 id="today-title">A working prototype, and an honest list.</h2>
+    </div>
+    <div class="status">
+      <div class="panel">
+        <h3>Built</h3>
+        <ul>
+          <li>A working Android test app for the older person and the family, plus the server that transcribes and scores each check-in.</li>
+          <li>The 4AT's four parts by voice: alertness, orientation, attention and sudden change, with an optional evening check-in.</li>
+          <li>A speech model fine-tuned on older voices, the quiet-room check, and texts for missed check-ins.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Not yet</h3>
+        <ul>
+          <li>Clari hasn't been tested with people who have delirium. Its voice checks have only seen recordings of healthy speakers and simulated changes.</li>
+          <li>It isn't in the App Store or Google Play, and there's no iPhone build yet.</li>
+          <li>It's a screening aid, not a diagnosis, and not a medical device.</li>
+        </ul>
+        <p><b>Next:</b> a pilot with hospitals and delirium researchers, comparing Clari's results with clinicians' own 4AT scores after patients go home.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ======= FAQ ======= -->
+<section id="faq" aria-labelledby="faq-title" style="padding-top:0">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">Questions</p>
+      <h2 id="faq-title">Things families ask.</h2>
+    </div>
+    <div class="faq">
+      <details><summary>What if they just have a cold or slept badly?</summary><p>Clari compares each day with their own recent normal days, so one off morning usually shows up as "Keep an eye on it", not an alarm. The voice measures alone can't trigger "Call their doctor". You can also listen to their answers yourself.</p></details>
+      <details><summary>Does "their usual self" mean they're fine?</summary><p>No. It means today's answers look like their normal days. Clari can miss things, so if you're worried, call them or their doctor anyway.</p></details>
+      <details><summary>What if they don't do the check-in?</summary><p>If they haven't checked in a few hours after their reminder, you get a text. A missed day never shows as a good day.</p></details>
+      <details><summary>What phone does it need?</summary><p>Today there's an Android test version. It isn't in the app stores yet, and there's no iPhone version yet.</p></details>
+      <details><summary>Who can hear the recordings?</summary><p>Only the family members linked to that person. Sharing the recordings can be turned off.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="cta" aria-labelledby="cta-title" style="padding-top:0">
+  <div class="wrap">
+    <div class="box">
+      <div>
+        <h2 id="cta-title">Working on delirium or hospital discharge?</h2>
+        <p class="lede" style="max-width:44ch">We're looking for hospitals and researchers to pilot Clari with families after a hospital stay. The code is open.</p>
+      </div>
+      <a class="btn btn-primary" href="https://github.com/bemah123456/north-2" target="_blank" rel="noopener">See the project on GitHub</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Clari was built by team North #2 (Ben, Muhammad and David) for the University of Rochester Heist Hackathon, Health Tech vault, 2026.</p>
+    <p>Clari is not a medical device. In an emergency, call 911.</p>
+    <div class="sources" id="sources">
+      <p><b>Sources</b></p>
+      <ol>
+        <li id="src-1">Inouye SK, Westendorp RGJ, Saczynski JS. Delirium in elderly people. <i>The Lancet</i>, 2014.</li>
+        <li id="src-2">Han JH et al. Delirium in older emergency department patients: recognition, risk factors, and psychomotor subtypes. <i>Academic Emergency Medicine</i>, 2009.</li>
+        <li id="src-3">Tieges Z et al. Diagnostic accuracy of the 4AT for delirium detection in older adults: systematic review and meta-analysis. <i>Age and Ageing</i>, 2021.</li>
+      </ol>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
