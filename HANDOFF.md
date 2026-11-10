@@ -1,6 +1,6 @@
 # Handoff
 
-Last updated 2026-11-02 (Clari landing page added). A short, current summary of North 2. Every piece of finished work updates this file in the same pull request.
+Last updated 2026-11-10 (landing page restyled to three colours). A short, current summary of North 2. Every piece of finished work updates this file in the same pull request.
 
 ## Goal
 
@@ -22,6 +22,7 @@ A voice check-in that helps families catch delirium in older relatives early. Th
 - **Gemini, off by default** (claude/gemini-integration): three flags, each with a fallback to today's behaviour. `GEMINI_TRANSCRIBE=1` takes the words from Gemini and keeps Whisper's word timings for the voice measures; `JUDGE_ENGINE=gemini` lets Gemini listen to answers the rules can't settle; `GEMINI_SPEECH_NOTE=1` adds a 0-3 "unusual speech" rating worth at most 1 point of the change score, never more than the other evidence, so it can't alarm alone. Vertex AI (production, zero data retention + BAA) or a Developer API key (synthetic audio only). Model pinned to `gemini-3.6-flash` (2.5-flash is closed to new keys). Whether Gemini's words become the default waits on the older-speaker benchmark. Env vars: `daily-checkin/README.md`; privacy: `daily-checkin/LAUNCH.md`.
 
 - **Landing page** (claude/project-thread-fcgkpv, 2026-11-02): a one-page Clari site in `landing/`, rebuilt with the user's chosen design tools (Arc UI, Wired Elements, thinking-orbs, Space UI squircle, Componentry's annotated text and calendar) bundled into `landing/vendor/clari-ui.js`. Uses the app's look, real screenshots, the demo video and cited stats, with the limits stated up front. Preview: https://claude.ai/artifact/VpezNthrvVcyugqNrbPJqw. Not deployed; hosting and a domain wait on the user.
+- **Landing page restyle** (claude/project-thread-f5klxw, 2026-11-10): the page now uses two quiet colours (pine `#173A33`, mist `#EEF2EC`) and one loud one (cobalt `#2433E0`; an orange version was tried first and replaced at the user's ask) for buttons, hand-drawn marks and "pay attention" results. Same design tools, plus fixes to the hero (the result card no longer covers text). Before/after screenshots: `landing/screenshots/`.
 
 ## In progress
 
